@@ -40,11 +40,11 @@ bash scripts/dsh.sh --profile wbptc --dump-config | grep -B2 "disabled: true"
 | 变量 | 默认 | 含义 |
 | --- | --- | --- |
 | `WBPTC_WORKSPACE` | 程序文件所在目录 | 沙箱作用根，同时作为会话 cwd。dsh-ops 的文件工具以它为基准解析相对路径 |
-| `WBPTC_SANDBOX` | `workspace-write` | 沙箱模式覆盖，用于诊断（见下） |
+| `WBPTC_SANDBOX` | `danger-full-access` | 沙箱模式覆盖，用于回归与上游修复后的重测（见下） |
 
-## ⚠️ 沙箱模式：Windows 上的实际限制
+## 沙箱：为什么默认是全开
 
-三种模式在**本机实测**的结果：
+三种模式**本机实测**结果：
 
 | 模式 | PTC 子进程 | 说明 |
 | --- | --- | --- |
@@ -52,11 +52,17 @@ bash scripts/dsh.sh --profile wbptc --dump-config | grep -B2 "disabled: true"
 | `workspace-write` | ❌ 崩溃 | 同上 |
 | `danger-full-access` | ✅ 正常 | `enforcement: policy`，`boundary: trusted-native-file-operations` |
 
-**任何 OS 级 confinement 都会打死 PTC 的 Node 子进程。** 这是 DSH 0.2.0-rc.2 + Windows 的上游限制（Windows 上 enforcement 本来就只报 `partial`），不是本项目引入的。
+**任何 OS 级 confinement 都会打死 PTC 的 Node 子进程。** 这是 DSH 0.2.0-rc.2 + Windows 的上游限制，不是本项目引入的。
 
-后果：当前可用的模式是 `danger-full-access`，意味着**程序本身不受 OS 级文件约束**，只能靠 dsh-ops 工具自己的策略层（`danger-full-access` 下它不做写入路径检查）。dsh-ops 自己的验收文档也写明："四个 FastCtx 文件工具仍是非宿主沙箱后端……没有文件系统约束设计前，不作为不可信受限环境的安全方案。"
+**因此默认是全开，程序本身没有 OS 级文件兜底——这是实测结论，不是疏漏。** 完整的取舍理由与"不要把它改成 workspace-write"的告诫见 `docs/adr/0004-danger-full-access-on-windows.md`。
 
-所以约束模型是：**程序是可信的（我们自己写的），工具层做策略检查，但没有 OS 兜底。**
+回归方式（预期是 `worker-exit`）：
+
+```sh
+WBPTC_SANDBOX=workspace-write bash scripts/dsh.sh --profile wbptc examples/03-batch-scan.ts
+```
+
+约束模型：**程序是可信的（我们自己写的）+ 工具层做策略检查 + 没有 OS 兜底**——与 WorkBuddy 自己调 Bash 是同一层信任。写操作的习惯：先 `dryRun` 看影响面再落盘（`ops_replace` 原生支持，见 `examples/04-write.ts`）。
 
 ## dsh-ops
 

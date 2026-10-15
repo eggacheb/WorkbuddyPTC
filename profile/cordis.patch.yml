@@ -66,14 +66,18 @@
       config:
         sampleOverCapGlobResults: false
 
-# 沙箱策略：sdk-minimal 的模板默认是 danger-full-access，那对"在用户真实项目里
-# 干活"来说太宽。默认收紧成 workspace-write，作用根由 WBPTC_WORKSPACE 决定
-# （runner 也用同一个值作为会话 cwd，两边必须一致）。
+# 沙箱策略。
 #
-# 可以用 WBPTC_SANDBOX 覆盖，用于诊断沙箱与 PTC 子进程的兼容性。
+# ⚠️ 默认 danger-full-access **不是**疏漏，是实测结论：Windows 上叠加任何 OS 级
+# confinement 都会打死 PTC 的 Node 子进程（worker-exit / ICU data）。
+# 详见 docs/adr/0004-danger-full-access-on-windows.md —— 不要把它改成
+# workspace-write，那会让整条链路不可用。
+#
+# workspaceRoot 在 full-access 下不构成约束，但保持设置，便于上游修好后一行切换。
+# WBPTC_SANDBOX / WBPTC_WORKSPACE 用于覆盖与回归。
 - id: sandbox-policy
   config:
-    mode: !!js process.env.WBPTC_SANDBOX ?? 'workspace-write'
+    mode: !!js process.env.WBPTC_SANDBOX ?? 'danger-full-access'
     workspaceRoot: !!js process.env.WBPTC_WORKSPACE ?? process.cwd()
 
 # ---- 3. 让注册表进入 PTC 模式：wire 上只剩 run_code ----
