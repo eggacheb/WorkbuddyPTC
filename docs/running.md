@@ -20,13 +20,21 @@
 cp skill/SKILL.md ~/.workbuddy/skills/wbptc/SKILL.md
 ```
 
-`~/.workbuddy/mcp.json` 里的配置（已写入）：
+`~/.workbuddy/mcp.json` 里的配置由脚本自动写入（`setup.sh` 会调用它，也可单独跑）：
+
+```sh
+node scripts/install-mcp.mjs           # 写入（写前自动备份原文件）
+node scripts/install-mcp.mjs --print   # 只预览将写入的内容，不动文件
+```
+
+它按当前机器动态生成所有路径（node、仓库位置、dsh），所以仓库放哪都行；写入是**合并式**的——只覆盖 `wbptc` 这一个键，其他 MCP 条目原样保留。生成的条目形如：
 
 ```json
 { "mcpServers": { "wbptc": {
     "type": "stdio",
     "command": "C:\\Program Files\\nodejs\\node.exe",
-    "args": ["D:\\code\\WorkbuddyPTC\\mcp\\server.js"]
+    "args": ["D:\\code\\WorkbuddyPTC\\mcp\\server.js"],
+    "env": { "DSH_BIN": "C:\\Users\\...\\dsh.cmd" }
 } } }
 ```
 
@@ -66,6 +74,15 @@ bash scripts/dsh.sh --profile wbptc examples/03-batch-scan.ts
 ```
 
 ## 构建流程
+
+**首次部署（新机器）用一键脚本，幂等可重复运行：**
+
+```sh
+bash scripts/setup.sh
+# = 检查前置 → 建 profile → 装 dsh-ops → 部署 + 生成声明 → 回归检查 → 写 MCP 配置 + 装技能
+```
+
+日常维护的分步命令：
 
 ```sh
 # 1. 首次：从 sdk-minimal 模板建 profile

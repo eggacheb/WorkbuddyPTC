@@ -35,13 +35,14 @@ unset DEEPSEEK_API_KEY
 unset DEEPSEEK_API_BASE
 unset DEEPSEEK_BASE_URL
 
-# --- 守卫 3：定位 dsh 二进制 ---
-DSH_BIN="${DSH_BIN:-/c/Users/Administrator/AppData/Local/Programs/DeepSeek Harness/resources/runtime/cli/bin/dsh.cmd}"
-if [ ! -e "$DSH_BIN" ]; then
-  echo "[wbptc] 找不到 dsh：$DSH_BIN" >&2
-  echo "[wbptc] 可用 DSH_BIN=... 覆盖。" >&2
+# --- 守卫 3：定位 dsh 二进制（候选路径见 scripts/lib-find-dsh.sh） ---
+. "$REPO_ROOT/scripts/lib-find-dsh.sh"
+if ! DSH_BIN="$(find_dsh)"; then
+  echo "[wbptc] 找不到 dsh。请先安装 DeepSeek Harness 桌面应用，" >&2
+  echo "[wbptc] 或用 DSH_BIN=/你的路径/dsh.cmd 显式指定。" >&2
   exit 1
 fi
+export DSH_BIN
 
 echo "[wbptc] DSH_HOME=$DSH_HOME" >&2
 echo "[wbptc] 模型凭据：已抹除（DEEPSEEK_API_KEY 未设置）" >&2
