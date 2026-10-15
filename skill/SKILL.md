@@ -45,9 +45,11 @@ ops_inspect_local_file  ops_grep  ops_glob  ops_replace
 pwsh
 ```
 
-### ⚠️ 没有 shell 能力
+### ⚠️ 没有 shell 能力（双重边界）
 
-`pwsh` 虽然出现在绑定里，但**执行必然失败**：`agent "undefined" is not the registered PTY owner`。它要求 agent 注册在 dsh 的 agents 服务里，而本项目是**无 agent 架构**（ADR-0001 的三层隔离就建立在这上面）。dsh-ops 的 `ops_bash` / `ops_run` 等命令类工具同理——它们需要 agent 生态，未注册，绑定里也不存在。
+**第一层（工具层）**：`pwsh` 虽然出现在绑定里，但**执行必然失败**（`agent "undefined" is not the registered PTY owner`）——它要求 agent 注册在 dsh 的 agents 服务里，而本项目是**无 agent 架构**（ADR-0001 的三层隔离就建立在这上面）。dsh-ops 的 `ops_bash` / `ops_run` 等命令类工具同理，绑定里根本不存在。
+
+**第二层（原生层）**：程序**能加载** `node:child_process`，但子进程**无法真正创建**。实测（2026-10-16）：spawn 一个绝对路径的 exe 返回 `{status: 1, error: null}`、stdout/stderr 全空、用磁盘副作用判定进程从未诞生；手动补齐 SYSTEMROOT/PATH/ComSpec 也无效。对照：同一程序里 `fs` 读写完全正常。所以"跑不了命令"是运行时的硬边界，**不要在程序里尝试绕过**。
 
 **需要跑命令时（git、构建、脚本、npm）：不要写进程序。直通调用宿主自己的执行工具。** 这正好落在 ADR-0002 的第二种约定里：批量的文件操作走程序，单发的命令走直通。
 

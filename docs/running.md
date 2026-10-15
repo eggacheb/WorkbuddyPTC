@@ -158,6 +158,12 @@ WBPTC_SANDBOX=workspace-write bash scripts/dsh.sh --profile wbptc examples/03-ba
 
 约束模型：**程序是可信的（我们自己写的）+ 工具层做策略检查 + 没有 OS 兜底**——与 WorkBuddy 自己调 Bash 是同一层信任。写操作的习惯：先 `dryRun` 看影响面再落盘（`ops_replace` 原生支持，见 `examples/04-write.ts`）。
 
+## 程序的原生能力边界（2026-10-16 实测）
+
+PTC 程序**能加载** `node:child_process`，但**子进程无法真正创建**：spawn 返回 `{status: 1, error: null}`、stdout/stderr 全空；用"磁盘副作用"判定（让子进程写标记文件）证明进程从未诞生。手动补齐 SYSTEMROOT / PATH / ComSpec 也无效。对照实验：同一程序里 `fs` 的读写完全正常——所以边界是"进程创建不可用"，不是"所有 Node 能力被禁"。从程序侧无法绕过，**不要尝试**。
+
+参考坐标：dsh 桌面端的 `dsh-ptc-plus`（第三方会话级 REPL 增强运行时）没有这条限制——程序可直接跑命令、编译 C#、读注册表。两套运行时的能力集不同，本项目用的是原版。完整探测过程见 `examples/06-program-shell.ts`（五轮，含失败方式的演进）。
+
 ## dsh-ops
 
 已装进 profile：
