@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# 提交前跑静态检查（毫秒级）：部署同步 + 语法。
+# 需要 dsh 的完整回归请手动跑 scripts/check.sh。
+exec bash "$(git rev-parse --show-toplevel)/scripts/check.sh" --static

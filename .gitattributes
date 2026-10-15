@@ -1,0 +1,3 @@
+# 统一 LF。Windows 上 hook 与 shell 脚本带 CRLF 会让 shebang 失效
+# （解释器路径里混进 \r），所以行尾必须钉死。
+* text=auto eol=lf

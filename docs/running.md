@@ -83,12 +83,26 @@ bash scripts/describe-tools.sh
 
 第 4 步里含一个**对第三方包的补丁**：dsh-ops 的工具 schema 用了 DSH 不支持的 `minimum`/`maximum`/`minItems`，会让 `ops_*` 的参数类型整体降级成 `unknown`。补丁去掉它们，脚本末尾有断言防止 dsh-ops 升级后静默退化。原因与取舍见 `docs/adr/0005-patch-dsh-ops-schema.md`。
 
-## 校验（都不启动、不联网）
+## 校验
 
 ```sh
-# 看组合树：确认模型侧的行都是 disabled: true
+# 一键回归：静态（部署同步 + 语法）+ 需要 dsh 的部分（模型行、ptc 模式、unknown 断言），约 5 秒
+bash scripts/check.sh
+
+# 只跑静态部分（pre-commit 钩子用的就是它，毫秒级）
+bash scripts/check.sh --static
+
+# 手动看组合树（check.sh 已包含这一步）
 bash scripts/dsh.sh --profile wbptc --dump-config | grep -B2 "disabled: true"
 ```
+
+新 clone 或新机器上，启用 pre-commit 钩子（仓库级配置，只对本仓库生效）：
+
+```sh
+git config core.hooksPath .githooks
+```
+
+`check.sh` 里有一条刻意的设计：**台账 `debitUnits` 只展示、不断言**——你平时自己用 dsh 桌面应用时消费是正常的，把它写成断言是好心的错误检查。唯一能做硬断言的是「模型行被禁用」——它让消费在代码路径上不可能。
 
 ## 两个踩过的坑
 
