@@ -20,14 +20,34 @@
 cp skill/SKILL.md ~/.workbuddy/skills/wbptc/SKILL.md
 ```
 
-`mcp.json` 里的配置（已写入）：
+`~/.workbuddy/mcp.json` 里的配置（已写入）：
 
 ```json
-{ "mcpServers": { "wbptc": { "command": "C:\\Program Files\\nodejs\\node.exe",
-                             "args": ["D:\\code\\WorkbuddyPTC\\mcp\\server.js"] } } }
+{ "mcpServers": { "wbptc": {
+    "type": "stdio",
+    "command": "C:\\Program Files\\nodejs\\node.exe",
+    "args": ["D:\\code\\WorkbuddyPTC\\mcp\\server.js"]
+} } }
 ```
 
-**注意**：新写的 MCP 不会自动生效，需要在 WorkBuddy 连接器管理页右上角的自定义连接器入口点一次"信任"。
+### 激活流程（容易卡住的地方）
+
+**`type: "stdio"` 不能省。** WorkBuddy 自带的官方插件 `.mcp.json`（例如 `plugins/cache/workbuddy-builtin/mcp-miora/*/.mcp.json`）用的就是 `type` + `command` + `args` 这一组字段，照它写最稳。
+
+写入文件之后**不会自动生效**，而且**外部直接改文件时应用可能不会刷新它自己的列表**——因为应用是通过「自定义连接器」页里的「配置 MCP」按钮打开的**内置编辑器**读写这份文件的。所以：
+
+1. 打开 WorkBuddy → 侧边栏「专家·技能·连接器」→「连接器」
+2. 页面右上角「自定义连接器」→「MCP 服务管理」→ 点「**配置 MCP**」
+3. 看编辑器里有没有 `wbptc` 这一条
+   - **有** → 直接点「**保存**」（这一步会让应用重新读取），回到列表点「**信任**」
+   - **没有** → 重启 WorkBuddy 再看
+
+排查时可以先自己确认 server 那边没问题（它连空环境都能起来）：
+
+```sh
+printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}\n' \
+  | "/c/Program Files/nodejs/node.exe" mcp/server.js
+```
 
 ## B. 手动跑一个程序（调试用）
 
