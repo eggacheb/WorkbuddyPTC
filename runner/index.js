@@ -38,6 +38,26 @@ async function run(ctx, exit) {
   if (LOADER_SETTLE_MS > 0) await new Promise(r => setTimeout(r, LOADER_SETTLE_MS))
 
   const args = ctx.get('cmdlineArgs')?.get() ?? []
+
+  // 描述模式：把 DSH 自己生成的 tools:sdk 段吐出来。
+  // 这段就是 PTC 模式下系统提示里的那份 TypeScript 声明——由注册表的
+  // jsonSchemaToTs() 从工具 JSON Schema 生成，不是我们手写的。
+  // WorkBuddy 侧的模型靠它才知道 tools.ops_glob 这些怎么调。
+  if (args[0] === '--describe-tools') {
+    const cwd = process.env.WBPTC_WORKSPACE ?? process.cwd()
+    const agent = await buildAgent(cwd)
+    const assembly = await ctx.get('systemPrompt')?.assemble({ agent })
+    const section = (assembly?.sections ?? []).find(s => s.name === 'tools:sdk')
+    if (section === undefined) {
+      process.stderr.write('[wbptc] 组装结果里没有 tools:sdk 段——注册表可能不在 ptc 模式。\n')
+      exit(1)
+      return
+    }
+    process.stdout.write(String(section.text ?? ''))
+    exit(0)
+    return
+  }
+
   const programPath = args[0]
   if (programPath === undefined || programPath === '') {
     process.stderr.write('[wbptc] 用法：dsh --profile wbptc <程序文件路径>\n')
@@ -106,5 +126,12 @@ async function buildAgent(cwd) {
     isSeeded: false,
     cwd,
   })
-  return { session }
+  return {
+    session,
+    // agent-loop 注册的提示词变量会读 context.agent.options.provider / .model
+    // （packages/core/agent-loop/src/index.ts 的 ctx.systemPrompt.variable）。
+    // 这两个值只用于模板插值，**不触发任何模型调用**——本 profile 也没有可用的
+    // provider。写死成 none 是为了让"这个 agent 没有模型"这件事在产物里可见。
+    options: { provider: 'none', model: 'none' },
+  }
 }

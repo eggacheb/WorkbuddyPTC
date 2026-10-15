@@ -2,25 +2,56 @@
 
 本项目的运行形态：**WorkBuddy 出模型，dsh 出执行与工具**（见 ADR-0001）。
 
-## 前置
+两种用法：**让 WorkBuddy 用**（主线，走 MCP）和**手动跑一个程序**（调试用）。
 
-- DeepSeek Harness 桌面应用已安装（本项目用它的运行时，但**不碰**它的 `~/.dsh`，见 ADR-0003）
-- 项目的 `DSH_HOME` 是仓库内的 `.dsh-home/`，已在 `.gitignore` 里
+## A. 让 WorkBuddy 用
 
-## 三条命令
+三样东西，各自的位置：
+
+| 部件 | 位置 | 作用 |
+| --- | --- | --- |
+| MCP server | `mcp/server.js`，注册在 `~/.workbuddy/mcp.json` | 暴露 `run_program` 工具 |
+| 工具声明 | `mcp/tools-sdk.md`（生成物，已提交） | 模型读它才知道有哪些工具、什么签名 |
+| 技能 | `skill/SKILL.md`，已装到 `~/.workbuddy/skills/wbptc/` | 告诉模型什么时候该写程序、什么时候照旧直通调用 |
+
+改了 `skill/` 或 `mcp/server.js` 之后要同步出去：
 
 ```sh
-# 1. 首次：从 sdk-minimal 模板建 profile（可重复执行，会重置该 profile）
-bash scripts/dsh.sh --profile wbptc --from-default-profile sdk-minimal --dump-config
-
-# 2. 每次改了 profile/ 或 runner/ 之后：部署进去
-bash scripts/deploy.sh
-
-# 3. 跑一段程序
-bash scripts/dsh.sh --profile wbptc examples/01-arithmetic.ts
+cp skill/SKILL.md ~/.workbuddy/skills/wbptc/SKILL.md
 ```
 
-第 3 条会打印程序 `return` 的值。程序是 **TypeScript 的 async 函数体**，可以用顶层 `await` 和 `return`。
+`mcp.json` 里的配置（已写入）：
+
+```json
+{ "mcpServers": { "wbptc": { "command": "C:\\Program Files\\nodejs\\node.exe",
+                             "args": ["D:\\code\\WorkbuddyPTC\\mcp\\server.js"] } } }
+```
+
+**注意**：新写的 MCP 不会自动生效，需要在 WorkBuddy 连接器管理页右上角的自定义连接器入口点一次"信任"。
+
+## B. 手动跑一个程序（调试用）
+
+```sh
+bash scripts/dsh.sh --profile wbptc examples/03-batch-scan.ts
+```
+
+## 构建流程
+
+```sh
+# 1. 首次：从 sdk-minimal 模板建 profile
+bash scripts/dsh.sh --profile wbptc --from-default-profile sdk-minimal --dump-config
+
+# 2. 装 dsh-ops（只需一次）
+bash scripts/dsh.sh plugin --profile wbptc add dsh-ops
+
+# 3. 每次改了 profile/ 或 runner/ 之后
+bash scripts/deploy.sh
+
+# 4. 改了 profile 之后重新生成给模型看的工具声明
+bash scripts/describe-tools.sh
+```
+
+第 4 步里含一个**对第三方包的补丁**：dsh-ops 的工具 schema 用了 DSH 不支持的 `minimum`/`maximum`/`minItems`，会让 `ops_*` 的参数类型整体降级成 `unknown`。补丁去掉它们，脚本末尾有断言防止 dsh-ops 升级后静默退化。原因与取舍见 `docs/adr/0005-patch-dsh-ops-schema.md`。
 
 ## 校验（都不启动、不联网）
 

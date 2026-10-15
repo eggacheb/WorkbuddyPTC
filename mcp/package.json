@@ -1,0 +1,17 @@
+{
+  "name": "wbptc-mcp",
+  "version": "1.0.0",
+  "description": "wbptc —— WorkBuddy 的 PTC 接入口（MCP server）",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1"
+  },
+  "type": "module",
+  "private": true
+}
