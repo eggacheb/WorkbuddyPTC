@@ -1,0 +1,12 @@
+{
+  "name": "wbptc-runner",
+  "version": "0.0.1",
+  "private": true,
+  "description": "wbptc profile 的入口：把一段程序直接送进 dsh 的 PTC 执行链，不启动模型、不提交任何 user message",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "license": "MIT"
+}

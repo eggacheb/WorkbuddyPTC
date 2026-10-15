@@ -21,6 +21,21 @@
 - id: session-title
   disabled: true
 
+# 这两行唯一的依赖是上面被关掉的 deepseekLlmApiExtensions，
+# 不一起关掉会在启动时留下 "pending (waiting for service)" 警告。
+- id: session-log-deepseek
+  disabled: true
+- id: plugin-package-inventory-deepseek
+  disabled: true
+
+# SDK 那套 JSON-RPC 服务我们不用：它会占住 stdio，而且它的命令行是
+# "zero-option" 语法，会直接拒掉我们传给 runner 的程序路径。
+# appReady / appExit 由 launcher 提供，与这两个插件无关。
+- id: sdk-jsonrpc-server
+  disabled: true
+- id: sdk-app-startup
+  disabled: true
+
 # ---- 2. 补上 PTC 执行链 ----
 - insert:
     - id: filesystem
@@ -48,8 +63,19 @@
 
     - id: tool-fs-search
       name: '@deepseek-ai/dsh-tool-fs-search'
+      config:
+        sampleOverCapGlobResults: false
 
 # ---- 3. 让注册表进入 PTC 模式：wire 上只剩 run_code ----
 - id: tools
   config:
     mode: ptc
+
+# ---- 4. 我们的入口：把程序直接送进 run_code，不经模型 ----
+#
+# 相对名按"相对本 patch 文件"解析（DSH 的载荷约定：relative plugin names in
+# inserted rows resolve beside their patch file），所以不需要 pnpm 安装，
+# 由 scripts/deploy.sh 把 runner/ 拷进 profile 目录即可。
+- insert:
+    - id: wbptc-runner
+      name: './runner/index.js'
