@@ -57,10 +57,21 @@ async function run(ctx, exit) {
 
   const controller = new AbortController()
   const started = Date.now()
+
+  const { dirname, resolve } = await import('node:path')
+  const cwd = resolve(process.env.WBPTC_WORKSPACE ?? dirname(resolve(programPath)))
+
+  // 这里必须是一个**真的 Session 实例**，不是字面量对象。
+  // run_code 的桥会调 agent.session.append(...)，而 dsh-ops 的文件工具会读
+  // session.id / session.header.cwd（lib/file/worker.js 的前置检查）。
+  // 官方测试里的构造方式见 packages/boot/plugin-manager/tests/tools.spec.ts。
+  const agent = await buildAgent(cwd)
+
   const result = await ctx.tools.execute({
     callId: 'wbptc-1',
     name: 'run_code',
     arguments: { code, description: 'wbptc runner' },
+    agent,
     signal: controller.signal,
   })
   const elapsed = Date.now() - started
@@ -73,4 +84,27 @@ async function run(ctx, exit) {
 
   process.stderr.write(`[wbptc] 耗时 ${elapsed}ms，isError=${result?.isError === true}\n`)
   exit(result?.isError === true ? 1 : 0)
+}
+
+/**
+ * 造一个最小的、但方法齐全的 agent 对象。
+ *
+ * 只是给运行时装一个"身份 + 工作目录"，**不挂 agent-loop、不发任何请求**：
+ * 这个 Session 没有任何事件被追加到真实会话日志里，也不参与任何模型调用。
+ *
+ * @param {string} cwd - 绝对工作目录，同时作为沙箱作用根。
+ * @returns {Promise<{session: unknown}>} 供 ToolExecutionInput.agent 使用。
+ */
+async function buildAgent(cwd) {
+  const mod = await import('@deepseek-ai/dsh-session')
+  const { Session, SessionId, SESSION_FORMAT_VERSION } = mod
+  const id = typeof SessionId === 'function' ? SessionId('wbptc') : 'wbptc'
+  const session = Session.create(id, undefined, {
+    version: SESSION_FORMAT_VERSION,
+    id,
+    createdAt: Date.now(),
+    isSeeded: false,
+    cwd,
+  })
+  return { session }
 }

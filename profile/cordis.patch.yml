@@ -66,6 +66,16 @@
       config:
         sampleOverCapGlobResults: false
 
+# 沙箱策略：sdk-minimal 的模板默认是 danger-full-access，那对"在用户真实项目里
+# 干活"来说太宽。默认收紧成 workspace-write，作用根由 WBPTC_WORKSPACE 决定
+# （runner 也用同一个值作为会话 cwd，两边必须一致）。
+#
+# 可以用 WBPTC_SANDBOX 覆盖，用于诊断沙箱与 PTC 子进程的兼容性。
+- id: sandbox-policy
+  config:
+    mode: !!js process.env.WBPTC_SANDBOX ?? 'workspace-write'
+    workspaceRoot: !!js process.env.WBPTC_WORKSPACE ?? process.cwd()
+
 # ---- 3. 让注册表进入 PTC 模式：wire 上只剩 run_code ----
 - id: tools
   config:
