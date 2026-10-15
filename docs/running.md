@@ -37,10 +37,10 @@ cp skill/SKILL.md ~/.workbuddy/skills/wbptc/SKILL.md
 写入文件之后**不会自动生效**，而且**外部直接改文件时应用可能不会刷新它自己的列表**——因为应用是通过「自定义连接器」页里的「配置 MCP」按钮打开的**内置编辑器**读写这份文件的。所以：
 
 1. 打开 WorkBuddy → 侧边栏「专家·技能·连接器」→「连接器」
-2. 页面右上角「自定义连接器」→「MCP 服务管理」→ 点「**配置 MCP**」
-3. 看编辑器里有没有 `wbptc` 这一条
-   - **有** → 直接点「**保存**」（这一步会让应用重新读取），回到列表点「**信任**」
-   - **没有** → 重启 WorkBuddy 再看
+2. **完全重启 WorkBuddy**（2026-10-15 实测：写文件后不重启，列表里不出现；重启后出现）
+3. 页面右上角「自定义连接器」→「MCP 服务管理」，点「**信任**」
+
+若重启后仍不出现，再用「**配置 MCP**」打开内置编辑器确认 `wbptc` 在不在里面——应用是通过这个编辑器读写该文件的，外部直接改文件时它的内存态不会刷新。
 
 排查时可以先自己确认 server 那边没问题（它连空环境都能起来）：
 
@@ -48,6 +48,16 @@ cp skill/SKILL.md ~/.workbuddy/skills/wbptc/SKILL.md
 printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}\n' \
   | "/c/Program Files/nodejs/node.exe" mcp/server.js
 ```
+
+### 首次端到端验证（2026-10-15，重启 + 信任之后）
+
+从 WorkBuddy 会话内直接调用 `run_program` 做仓库盘点：28 个文件按目录归类、`ops_grep` 计数、`ops_inspect_local_file` 跨盘读取（`C:/Users/...`）——861–3029ms 返回，台账 `debitUnits` 全程为 0。
+
+同时暴露了三个使用边界，都已写进 `skill/SKILL.md`：
+
+- **返回值必须是严格无损 JSON**：任何 `undefined` 属性都报 `invalid-output: program completion must be lossless JSON`，整个程序算失败（其实已经跑完了，死在最后序列化那步）。属性值可能缺失时用清理函数过一遍
+- **没有 shell**：`pwsh` 在绑定里但执行必失败（`agent "undefined" is not the registered PTY owner`）；`ops_bash` 未注册。**命令类操作直通调用宿主工具，不要写进程序**
+- `ops_inspect_local_file` 返回 `items: [{ line, path, text }]`，和 dsh 自带 `read` 的 `lines: [{ number, text }]` 形状不同，别混
 
 ## B. 手动跑一个程序（调试用）
 
@@ -123,7 +133,7 @@ WBPTC_SANDBOX=workspace-write bash scripts/dsh.sh --profile wbptc examples/03-ba
 bash scripts/dsh.sh plugin --profile wbptc add dsh-ops
 ```
 
-它以 `dsh.bundle.patch` 声明自己是个 bundle 层，装完自动参与组合。四个组件里 `shell` 与 `file` 默认开启；`ptc`（`ops_batch` / `ops_result`）默认关闭且要求"纯 PTC 会话"——我们这套不是，所以那两个批处理工具目前拿不到。
+它以 `dsh.bundle.patch` 声明自己是个 bundle 层，装完自动参与组合。四个组件里 `shell` 与 `file` 默认开启（但 `shell` 的 bash 工具不会注册，原因见下）；`ptc`（`ops_batch` / `ops_result`）默认关闭且要求"纯 PTC 会话"——我们这套不是，所以那两个批处理工具目前拿不到。
 
 程序里可用的工具（`TOOL_PREFIX = 'ops_'`）：
 
@@ -133,7 +143,9 @@ bash scripts/dsh.sh plugin --profile wbptc add dsh-ops
 | `ops_grep` | Rust 正则搜索，支持 count / summary |
 | `ops_inspect_local_file` | 批量文本范围、编码、PDF 文本、hex |
 | `ops_replace` | 跨文件批量替换（`dryRun` 先看） |
-| `ops_bash` | 优先的 bash 执行器 |
+| ~~`ops_bash`~~ | **不可用**，见下 |
+
+**`ops_bash` 的缺席是架构性的，不是配置问题。** dsh-ops 只在 `agent/created` 事件上发布 bash 工具，并要求 agent 自带 Cordis fiber（`lib/session-shells.js` 的 `attach()`）。本项目是无 agent 架构（ADR-0001），没有 agents 注册表，它永远不会注册。同理 `pwsh` 虽在绑定里，执行必失败（PTY owner 检查同样要求 agents 注册表）。**要跑命令（git、构建、脚本）就在会话里直通调用宿主工具**，这正落在 ADR-0002 的第二种约定上。
 
 ## 会话身份
 
