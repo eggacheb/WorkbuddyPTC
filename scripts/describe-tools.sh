@@ -37,12 +37,14 @@ if [ ! -s "$OUT" ]; then
   exit 1
 fi
 
-# 断言：声明里不该再有降级的参数类型
-if grep -q ': unknown;' "$OUT"; then
-  echo "[wbptc] 声明里仍有降级为 unknown 的参数：" >&2
-  grep -n -B2 ': unknown;' "$OUT" >&2
+# 断言：dsh-ops 的四个文件工具不该降级为 unknown —— 这才是 schema 补丁要防的。
+# 注意不能宽泛地 grep ': unknown;'：dsh-ptc-plus 的声明里合法存在 unknown
+# （capabilities 的 owner/contract 等类型），那是它的设计而非降级。
+if grep -qE '^  ops_[a-z_]+: unknown;$' "$OUT"; then
+  echo "[wbptc] ops_* 的参数类型降级为 unknown：" >&2
+  grep -nE '^  ops_[a-z_]+: unknown;$' "$OUT" >&2
   echo "[wbptc] 多半是 dsh-ops 升级覆盖了 schema 补丁。检查 scripts/patch-dsh-ops-schema.py。" >&2
   exit 1
 fi
 
-echo "[wbptc] 已生成 $OUT（$(wc -c < "$OUT") 字节，$(grep -c '^' "$OUT") 行，无 unknown）" >&2
+echo "[wbptc] 已生成 $OUT（$(wc -c < "$OUT") 字节，$(grep -c '^' "$OUT") 行，ops_* 无降级）" >&2

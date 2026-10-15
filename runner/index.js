@@ -45,7 +45,7 @@ async function run(ctx, exit) {
   // WorkBuddy 侧的模型靠它才知道 tools.ops_glob 这些怎么调。
   if (args[0] === '--describe-tools') {
     const cwd = process.env.WBPTC_WORKSPACE ?? process.cwd()
-    const agent = await buildAgent(cwd)
+    const agent = await buildAgent(ctx, cwd)
     const assembly = await ctx.get('systemPrompt')?.assemble({ agent })
     const section = (assembly?.sections ?? []).find(s => s.name === 'tools:sdk')
     if (section === undefined) {
@@ -85,7 +85,7 @@ async function run(ctx, exit) {
   // run_code 的桥会调 agent.session.append(...)，而 dsh-ops 的文件工具会读
   // session.id / session.header.cwd（lib/file/worker.js 的前置检查）。
   // 官方测试里的构造方式见 packages/boot/plugin-manager/tests/tools.spec.ts。
-  const agent = await buildAgent(cwd)
+  const agent = await buildAgent(ctx, cwd)
 
   const result = await ctx.tools.execute({
     callId: 'wbptc-1',
@@ -110,15 +110,52 @@ async function run(ctx, exit) {
  * 造一个最小的、但方法齐全的 agent 对象。
  *
  * 只是给运行时装一个"身份 + 工作目录"，**不挂 agent-loop、不发任何请求**：
- * 这个 Session 没有任何事件被追加到真实会话日志里，也不参与任何模型调用。
+ * 这个 Session 没有任何模型回合、不参与任何模型调用。
  *
+ * 会话通过官方服务 `ctx.sessions.create()` 创建（entered + announced）而非手工
+ * 静态构造——这不是风格选择：session-query 的"活会话"同步读的就是
+ * `ctx.sessions.list()`，dsh-ptc-plus 的 observeSession 靠这条链找到会话。
+ * 手工构造的 detached 实例不入 store，链路查无此会话（实测报错：
+ * session "wbptc" not found）。文件工具不挑：两种构造都不影响它们。
+ *
+ * @param {import('@deepseek-ai/cordis').Context} ctx - 组合树上下文。
  * @param {string} cwd - 绝对工作目录，同时作为沙箱作用根。
- * @returns {Promise<{session: unknown}>} 供 ToolExecutionInput.agent 使用。
+ * @returns {Promise<{session: unknown, options: {provider: string, model: string}}>}
  */
-async function buildAgent(cwd) {
+async function buildAgent(ctx, cwd) {
   const mod = await import('@deepseek-ai/dsh-session')
-  const { Session, SessionId, SESSION_FORMAT_VERSION } = mod
+  const { SessionId } = mod
   const id = typeof SessionId === 'function' ? SessionId('wbptc') : 'wbptc'
+
+  // agent 的"作用域上下文"：dsh-ptc-plus 组装 prompt 时要向 agent 作用域注册
+  // edit_run_code（agent.ctx.tools.register），没有它会直接抛错（实测：
+  // "DSH agent-scoped tools.register is required to expose edit_run_code"）。
+  //
+  // 这里直接借用 runner 自己的插件 ctx：它是本进程里真实存在的 Cordis 作用域，
+  // 带 tools 服务访问，且随进程退出自然销毁。我们只有一个"agent"（wbptc），
+  // 不存在多 agent 间的隔离需求。
+  const agentCtx = ctx
+
+  const sessions = ctx.get('sessions')
+  if (sessions !== undefined && typeof sessions.create === 'function') {
+    try {
+      const session = sessions.create(id, { meta: { cwd } })
+      return {
+        session,
+        ...(agentCtx !== undefined ? { ctx: agentCtx } : {}),
+        // agent-loop 注册的提示词变量会读 context.agent.options.provider / .model
+        // （packages/core/agent-loop/src/index.ts 的 ctx.systemPrompt.variable）。
+        // 这两个值只用于模板插值，**不触发任何模型调用**——本 profile 也没有可用的
+        // provider。写死成 none 是为了让"这个 agent 没有模型"这件事在产物里可见。
+        options: { provider: 'none', model: 'none' },
+      }
+    } catch (error) {
+      // 例如同进程内 id 重复（create 会抛）——退回手工构造，不阻断运行。
+      process.stderr.write(`[wbptc] sessions.create 失败，退回手工会话：${error?.message ?? error}\n`)
+    }
+  }
+
+  const { Session, SESSION_FORMAT_VERSION } = mod
   const session = Session.create(id, undefined, {
     version: SESSION_FORMAT_VERSION,
     id,
@@ -128,10 +165,7 @@ async function buildAgent(cwd) {
   })
   return {
     session,
-    // agent-loop 注册的提示词变量会读 context.agent.options.provider / .model
-    // （packages/core/agent-loop/src/index.ts 的 ctx.systemPrompt.variable）。
-    // 这两个值只用于模板插值，**不触发任何模型调用**——本 profile 也没有可用的
-    // provider。写死成 none 是为了让"这个 agent 没有模型"这件事在产物里可见。
+    ...(agentCtx !== undefined ? { ctx: agentCtx } : {}),
     options: { provider: 'none', model: 'none' },
   }
 }

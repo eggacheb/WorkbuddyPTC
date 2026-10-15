@@ -45,13 +45,16 @@ ops_inspect_local_file  ops_grep  ops_glob  ops_replace
 pwsh
 ```
 
-### ⚠️ 没有 shell 能力（双重边界）
+### 程序里的能力（2026-10-16 更新：系统命令已解锁）
 
-**第一层（工具层）**：`pwsh` 虽然出现在绑定里，但**执行必然失败**（`agent "undefined" is not the registered PTY owner`）——它要求 agent 注册在 dsh 的 agents 服务里，而本项目是**无 agent 架构**（ADR-0001 的三层隔离就建立在这上面）。dsh-ops 的 `ops_bash` / `ops_run` 等命令类工具同理，绑定里根本不存在。
+执行内核是 **dsh-ptc-plus**（会话级 TypeScript REPL），程序是完整的 Node 运行时：
 
-**第二层（原生层）**：程序**能加载** `node:child_process`，但子进程**无法真正创建**。实测（2026-10-16）：spawn 一个绝对路径的 exe 返回 `{status: 1, error: null}`、stdout/stderr 全空、用磁盘副作用判定进程从未诞生；手动补齐 SYSTEMROOT/PATH/ComSpec 也无效。对照：同一程序里 `fs` 读写完全正常。所以"跑不了命令"是运行时的硬边界，**不要在程序里尝试绕过**。
+- **文件能力**：`ops_*` 四件套 + `read` / `write` / `edit` / `glob` / `grep` 完整可用
+- **系统命令**：**`child_process` 直接可用**——`spawn` / `exec` / `execFile` 可以跑 cmd、PowerShell、编译（csc）、git 等任何本机程序（实测：写标记文件、跑 PowerShell 全部成功）。**需要跑命令时，可以写进程序**——复合任务（读文件 + 跑命令 + 汇总）在程序里一次做完
+- **TypeScript 全语法**：运行时 `enum` / namespace 都支持（不再是"仅可擦除语法"）
+- 值传递增强：`undefined` / BigInt / NaN 等可直接返回——不过返回值保持干净 JSON 的习惯仍无害
 
-**需要跑命令时（git、构建、脚本、npm）：不要写进程序。直通调用宿主自己的执行工具。** 这正好落在 ADR-0002 的第二种约定里：批量的文件操作走程序，单发的命令走直通。
+单发命令仍走直通更快（程序启动约 9 秒 vs 直通一条命令约 1 秒）；**批量 + 复合任务才写程序**——这个分界没变，只是"复合"的空间变大了。
 
 ### 参数约定
 

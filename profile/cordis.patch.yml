@@ -41,8 +41,27 @@
     - id: filesystem
       name: '@deepseek-ai/dsh-fs-local'
 
-    - id: ptc-runtime-node
+    # dsh-base 提供、sdk-minimal 没有的标准服务：会话查询（sqlite）。
+    # dsh-ptc-plus 靠它读会话事件流做状态恢复（实测报错：
+    # sessionQuery.observeSession is unavailable）。
+    # 配置对齐官方 bundle：内存库 + 延迟打开（零启动开销、不落盘）。
+    - id: session-query-sqlite
+      name: '@deepseek-ai/dsh-session-query-sqlite'
+      config:
+        path: ':memory:'
+        openAt: never
+
+    # id 用官方命名 ptc-runtime（不是任意的）：dsh-ptc-plus 等按 id isolate 原执行行，
+    # 名字对不上它们就接不上（实测：cannot resolve entry ptc-runtime）。
+    #
+    # isolate 声明必须写在这一行上：dsh-ptc-plus 的补丁里有一句
+    # `- id: ptc-runtime / isolate:`，但它的层先于本层应用、当时这行还不存在，
+    # 语句落空；它随后检查该行的 options.isolate 并拒绝激活（实测）。
+    # 把隔离声明直接带在插入行上，两个问题一次解决。
+    - id: ptc-runtime
       name: '@deepseek-ai/dsh-ptc-runtime-node'
+      isolate:
+        ptcRuntime: ptc-plus-original
       config:
         executionMode: per-call
         timeoutMs: 120000

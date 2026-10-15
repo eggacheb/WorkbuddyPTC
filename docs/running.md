@@ -158,11 +158,30 @@ WBPTC_SANDBOX=workspace-write bash scripts/dsh.sh --profile wbptc examples/03-ba
 
 约束模型：**程序是可信的（我们自己写的）+ 工具层做策略检查 + 没有 OS 兜底**——与 WorkBuddy 自己调 Bash 是同一层信任。写操作的习惯：先 `dryRun` 看影响面再落盘（`ops_replace` 原生支持，见 `examples/04-write.ts`）。
 
-## 程序的原生能力边界（2026-10-16 实测）
+## dsh-ptc-plus：执行内核与进程能力（2026-10-16）
 
-PTC 程序**能加载** `node:child_process`，但**子进程无法真正创建**：spawn 返回 `{status: 1, error: null}`、stdout/stderr 全空；用"磁盘副作用"判定（让子进程写标记文件）证明进程从未诞生。手动补齐 SYSTEMROOT / PATH / ComSpec 也无效。对照实验：同一程序里 `fs` 的读写完全正常——所以边界是"进程创建不可用"，不是"所有 Node 能力被禁"。从程序侧无法绕过，**不要尝试**。
+执行内核已从原版 `dsh-ptc-runtime-node` 切换为 **dsh-ptc-plus**（第三方会话级 REPL，MIT）——它解锁了程序内的**系统命令能力**（`child_process` 直接可用），这是原版运行时主动阻止的（原版实测：spawn 返回假进程、零磁盘副作用——探测历史保留在 `examples/06-program-shell.ts` 的文件头注释里）。
 
-参考坐标：dsh 桌面端的 `dsh-ptc-plus`（第三方会话级 REPL 增强运行时）没有这条限制——程序可直接跑命令、编译 C#、读注册表。两套运行时的能力集不同，本项目用的是原版。完整探测过程见 `examples/06-program-shell.ts`（五轮，含失败方式的演进）。
+接入经过六个适配点（细节注释都写在 `profile/cordis.patch.yml` 与 `runner/index.js` 里，未来升级对照）：
+
+1. 原执行行的 id 用官方命名 `ptc-runtime`（插件按 id 找它——任意命名会让它 `cannot resolve entry`）
+2. 该行携带 `isolate: { ptcRuntime: ptc-plus-original }`（插件检查这条声明，缺失则拒绝激活）
+3. 补 `session-query-sqlite` 服务（dsh-base 提供、sdk-minimal 没有；配置为 `:memory:` + `openAt: never`）
+4. runner 的会话改经官方 `sessions.create()` 创建（entered + announced）——session-query 的活会话同步读 `ctx.sessions.list()`，手工构造的 detached 实例查无此会话
+5. runner 给 agent 挂作用域 ctx（借用插件 ctx）——ptc-plus 组装 prompt 时要向 agent 作用域注册 `edit_run_code`
+6. `describe-tools.sh` 的 unknown 断言收紧为 `^  ops_[a-z_]+: unknown;$`——ptc-plus 声明里合法含 `unknown`，宽泛匹配会误报
+
+**代价与边界**：
+- 每次执行的启动开销上升：约 **9 秒**（原版约 0.9–3 秒）——复合任务一次做完依然划算；单发操作继续直通
+- 程序能跑命令 = 与 WorkBuddy 直通 Bash 同一层信任；沙箱仍是 `danger-full-access`（ADR-0004）
+- 卸载 dsh-ptc-plus 后 runner 会自动降级（会话 fallback 到手工构造），但适配点 1/2/3 需一并清理——对照本节
+
+回归命令（动了 profile 之后跑）：
+
+```sh
+bash scripts/check.sh
+bash scripts/dsh.sh --profile wbptc examples/06-program-shell.ts   # 三个 marker 应为 true
+```
 
 ## dsh-ops
 

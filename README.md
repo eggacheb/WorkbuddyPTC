@@ -123,9 +123,9 @@ node scripts/install-mcp.mjs                                                    
 
 ### 已知限制
 
-- **程序里没有 shell**：`pwsh` / `ops_bash` 需要 dsh 的 agent 生态，而本项目是刻意的零 agent 架构（ADR-0001）。需要跑命令时由 WorkBuddy 直通执行。
-- **单发操作不走程序**：一次执行要启动一遍运行时（实测 0.9–3 秒），两种调用约定并存是设计，不是缺陷（ADR-0002）。
+- **单发操作不走程序**：一次执行要启动一遍运行时（dsh-ptc-plus 内核，实测约 9 秒），两种调用约定并存是设计，不是缺陷（ADR-0002）。
 - **沙箱是全开的**：Windows + dsh 0.2.0-rc.2 上任何 OS 级 confinement 都会打死 PTC 子进程（ADR-0004）。不要把它改回 `workspace-write`。
+- **执行内核是第三方组件**：dsh-ptc-plus（MIT）——它解锁了程序内的系统命令能力（ADR-0006）。升级它时对照 `profile/cordis.patch.yml` 里的适配点注释。
 
 ### 文档
 

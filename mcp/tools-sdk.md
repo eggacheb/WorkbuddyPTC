@@ -1,6 +1,6 @@
 ## Writing code for run_code
 
-`run_code` takes two required arguments: `code` — the body of an async TypeScript function (erasable syntax only — no `enum` or namespaces; type annotations are advisory, the code runs type-stripped) — and `description`, a short summary of what the program does. The declarations below are SDK bindings for this program. A declaration does not make its name a directly callable tool; only names supplied as separate tool schemas may be called directly.
+`run_code` takes two required arguments: `code` — a PTC Plus TypeScript cell (runtime `enum` and namespaces are supported; type annotations are advisory) — and `description`, a short summary of what the program does. The declarations below are SDK bindings for this program. A declaration does not make its name a directly callable tool; only names supplied as separate tool schemas may be called directly.
 
 Inside the program:
 
@@ -222,4 +222,23 @@ declare class ToolCallError extends Error {
 declare const tools: {
   [K in ToolName]: (args: ToolArgsMap[K]) => Promise<ToolOutputMap[K]>;
 }
+```
+
+## PTC Plus program capabilities
+
+Discover program APIs without calling them. `search({query})` retrieves whole indexed API descriptions by English/Chinese words; its UTF-8 JSON byte budget includes the envelope, with a continuation cursor and inspect references for oversized entries. `tree()` lists namespaces and members; `find()` matches case-insensitive symbols or contiguous words, separating CamelCase and punctuation; `inspect()` returns selected `namespace.member` symbols with an item-count budget. Missing metadata is unknown.
+
+```ts
+declare class CapabilityExplorationError extends Error { readonly operation: "tree" | "find" | "inspect" | "search" }
+declare const capabilities: {
+  tree(): Promise<Array<{ namespace: string; members: string[] }>>
+  find(query: string): Promise<Array<{ symbol: string; description?: string; completeness: string; effect: string; replay: string }>>
+  inspect(args?: { symbols?: string[]; budget?: number }): Promise<{ symbols: unknown[]; omitted: number; unknown: string[]; budget: number }>
+  search(args: { query: string; budgetBytes?: number; limit?: number; cursor?: string }): Promise<{ matches: Array<{ symbol: string; owner: unknown; contract: unknown }>; oversized: Array<{ symbol: string; requiredBytes: number; inspect: { symbols: string[]; budget: number } }>; total: number; remaining: number; cursor: string | null; budgetBytes: number; usedBytes: number; unit: "utf8-json-bytes" }>
+}
+```
+
+/binding only: copy its requestId; submission does not save, enable or run the draft.
+```ts
+declare namespace code { function submitBindingDraft(args: { requestId: string; entry: { id: string; name: string; scope: "namespace" | "top-level"; symbols?: string[]; purpose: string; source: string; modelContext?: { includeDeclaration?: boolean; instructions?: string } } }): Promise<{ accepted: true; id: string; requestId: string }> }
 ```
