@@ -54,17 +54,31 @@ else
   ok "已创建"
 fi
 
-# ---- 3/6 dsh-ops ----
-step "3/6  安装 dsh-ops 插件"
+# ---- 3/6 插件 ----
+# 两个插件都必须装：
+#   dsh-ops      —— file 组件的四个 ops_* 工具（批量文件操作主力）
+#   dsh-ptc-plus —— 执行内核（替换原版 ptc-runtime，解锁程序内系统命令能力，见 ADR-0006）
+step "3/6  安装插件（dsh-ops、dsh-ptc-plus）"
 if [ -d "$PROFILE_DIR/node_modules/dsh-ops" ]; then
-  ok "已安装，跳过"
+  ok "dsh-ops 已安装，跳过"
 else
-  echo "   从 npm 安装（首次约半分钟）……"
+  echo "   装 dsh-ops（首次约半分钟）……"
   if ! bash scripts/dsh.sh plugin --profile wbptc add dsh-ops >/dev/null 2>&1; then
     die "安装失败。单独重跑看报错：
        bash scripts/dsh.sh plugin --profile wbptc add dsh-ops"
   fi
-  ok "已安装"
+  ok "dsh-ops 已安装"
+fi
+
+if [ -d "$PROFILE_DIR/node_modules/dsh-ptc-plus" ]; then
+  ok "dsh-ptc-plus 已安装，跳过"
+else
+  echo "   装 dsh-ptc-plus（执行内核，首次约半分钟）……"
+  if ! bash scripts/dsh.sh plugin --profile wbptc add dsh-ptc-plus >/dev/null 2>&1; then
+    die "安装失败。单独重跑看报错：
+       bash scripts/dsh.sh plugin --profile wbptc add dsh-ptc-plus"
+  fi
+  ok "dsh-ptc-plus 已安装"
 fi
 
 # ---- 4/6 部署 + 声明 ----

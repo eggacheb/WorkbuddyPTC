@@ -81,7 +81,7 @@ bash scripts/dsh.sh --profile wbptc examples/03-batch-scan.ts
 
 ```sh
 bash scripts/setup.sh
-# = 检查前置 → 建 profile → 装 dsh-ops → 部署 + 生成声明 → 回归检查 → 写 MCP 配置 + 装技能
+# = 检查前置 → 建 profile → 装插件（dsh-ops + dsh-ptc-plus）→ 部署 + 生成声明 → 回归检查 → 写 MCP 配置 + 装技能
 ```
 
 日常维护的分步命令：
@@ -90,8 +90,9 @@ bash scripts/setup.sh
 # 1. 首次：从 sdk-minimal 模板建 profile
 bash scripts/dsh.sh --profile wbptc --from-default-profile sdk-minimal --dump-config
 
-# 2. 装 dsh-ops（只需一次）
-bash scripts/dsh.sh plugin --profile wbptc add dsh-ops
+# 2. 装插件（各只需一次）
+bash scripts/dsh.sh plugin --profile wbptc add dsh-ops        # ops_* 文件工具
+bash scripts/dsh.sh plugin --profile wbptc add dsh-ptc-plus   # 执行内核（程序内系统命令能力）
 
 # 3. 每次改了 profile/ 或 runner/ 之后
 bash scripts/deploy.sh
@@ -171,8 +172,15 @@ WBPTC_SANDBOX=workspace-write bash scripts/dsh.sh --profile wbptc examples/03-ba
 5. runner 给 agent 挂作用域 ctx（借用插件 ctx）——ptc-plus 组装 prompt 时要向 agent 作用域注册 `edit_run_code`
 6. `describe-tools.sh` 的 unknown 断言收紧为 `^  ops_[a-z_]+: unknown;$`——ptc-plus 声明里合法含 `unknown`，宽泛匹配会误报
 
-**代价与边界**：
-- 每次执行的启动开销上升：约 **9 秒**（原版约 0.9–3 秒）——复合任务一次做完依然划算；单发操作继续直通
+安装命令（`setup.sh` 已包含）：
+
+```sh
+bash scripts/dsh.sh plugin --profile wbptc add dsh-ptc-plus
+```
+
+**代价与边界**（耗时数字为 2026-10-16 实测）：
+
+- 每次执行的**基础**启动开销约 **0.7 秒**（672–735ms，与原版内核相当）；程序内每个 `ops_*` 文件操作各起一个 worker（约 0.5 秒/次），每条系统命令的开销取决于命令本身（cmd 约 0.3 秒、PowerShell 约 2–4 秒）。综合实测：批量文件操作（7 个调用）约 4.2 秒；含 3 条命令的复合任务约 8.4 秒——**复合任务一次做完依然划算；单发操作继续直通**
 - 程序能跑命令 = 与 WorkBuddy 直通 Bash 同一层信任；沙箱仍是 `danger-full-access`（ADR-0004）
 - 卸载 dsh-ptc-plus 后 runner 会自动降级（会话 fallback 到手工构造），但适配点 1/2/3 需一并清理——对照本节
 

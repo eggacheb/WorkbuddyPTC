@@ -60,6 +60,23 @@ sync_check runner/index.js .dsh-home/profiles/wbptc/runner/index.js "runner/inde
 sync_check runner/package.json .dsh-home/profiles/wbptc/runner/package.json "runner/package.json"
 echo
 
+# ---------- 静态：插件存在（setup.sh 漏装 / 包被删） ----------
+# 两个插件都是能力所在：dsh-ops 提供 ops_* 文件工具；dsh-ptc-plus 是执行内核
+# （替换原版 ptc-runtime，解锁程序内系统命令能力，ADR-0006）。
+echo "插件"
+if [ ! -d .dsh-home/profiles/wbptc ]; then
+  skip "profile 还不存在（先跑 scripts/setup.sh）"
+else
+  for p in dsh-ops dsh-ptc-plus; do
+    if [ -d ".dsh-home/profiles/wbptc/node_modules/$p" ]; then
+      ok "插件已安装：$p"
+    else
+      bad "插件缺失：$p —— 跑 scripts/setup.sh（会装缺失的插件）"
+    fi
+  done
+fi
+echo
+
 # ---------- 静态：语法 ----------
 echo "语法"
 if command -v node >/dev/null 2>&1; then
