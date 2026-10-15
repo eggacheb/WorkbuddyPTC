@@ -93,3 +93,13 @@
 - insert:
     - id: wbptc-runner
       name: './runner/index.js'
+
+# ---- 5. dsh-ops 的 ptc 组件（ops_batch / ops_result）：保持关闭 ----
+#
+# 它和 shell 组件绑定同一把锁。2026-10-15 实测：改成 disabled: false 后
+# 启动零警告，但两个工具都不会出现在声明里——因为 lib/ptc/index.js 的
+# attach() 只在 agent/created 事件上挂载，ptcOnly() 第一句就要求 agent.ctx，
+# 而本项目是零 agent 架构（ADR-0001）。保持关闭 = 不开一个空转的组件；
+# 如果将来放宽零 agent 的决定，改成 disabled: false 再跑 scripts/check.sh。
+- id: dsh-ops-ptc
+  disabled: true

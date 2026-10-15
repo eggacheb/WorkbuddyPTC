@@ -164,7 +164,12 @@ WBPTC_SANDBOX=workspace-write bash scripts/dsh.sh --profile wbptc examples/03-ba
 bash scripts/dsh.sh plugin --profile wbptc add dsh-ops
 ```
 
-它以 `dsh.bundle.patch` 声明自己是个 bundle 层，装完自动参与组合。四个组件里 `shell` 与 `file` 默认开启（但 `shell` 的 bash 工具不会注册，原因见下）；`ptc`（`ops_batch` / `ops_result`）默认关闭且要求"纯 PTC 会话"——我们这套不是，所以那两个批处理工具目前拿不到。
+它以 `dsh.bundle.patch` 声明自己是个 bundle 层，装完自动参与组合。四个组件的实际账面：
+
+- **`file`** —— ✅ **生效，是 PTC 程序的主力**。四个 `ops_*` 工具就是它（见下表）。
+- **`shell`** —— 装了、但 bash 工具不注册（原因见下）。
+- **`ptc`**（`ops_batch` / `ops_result`）—— **启用也拿不到**。2026-10-15 实测：改成 `disabled: false` 后启动零警告、工具零注册——它的 `attach()` 只监听 `agent/created` 事件，`ptcOnly()` 第一句就要求 `agent.ctx`（`lib/ptc/index.js`），零 agent 架构下它只会静默空转。所以 profile 里保持它关闭，并把原因写在 `profile/cordis.patch.yml` 里（将来若放宽零 agent 的决定，改一行并跑 `scripts/check.sh` 即可重测）。
+- **`background`** —— 默认关闭，未启用。
 
 程序里可用的工具（`TOOL_PREFIX = 'ops_'`）：
 
