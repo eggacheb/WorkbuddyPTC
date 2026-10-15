@@ -22,7 +22,7 @@
 | 需要什么 | 怎么获得 |
 | --- | --- |
 | 一台 Windows 电脑（64 位） | 本项目目前只支持 Windows |
-| **DeepSeek Harness 桌面应用** | 从 <https://github.com/deepseek-ai/deepseek-harness> 获取并安装。本项目只使用它的执行部件，**不会动它的任何设置**，你平时怎么用还怎么用 |
+| **DeepSeek Harness 桌面应用** | 从 <https://github.com/deepseek-ai/deepseek-harness> 获取并安装。本项目只使用它的执行部件，**不会动它的任何设置**，安装后也不需要让它保持运行 |
 | **Node.js** | <https://nodejs.org> 下载 LTS 版，安装时全部默认选项 |
 | **Git**（自带 Git Bash） | <https://git-scm.com> 下载安装，用来运行部署命令 |
 | WorkBuddy | 你已经有了 |
@@ -85,6 +85,8 @@ bash scripts/setup.sh
 > 把 docs 里所有文章里过期的内容列出来
 
 需要批量处理的活，WorkBuddy 会自动走这条快路；简单的读一个文件、改一行，照常直接做。**你不需要指定任何工具。**
+
+**常见问题：DeepSeek Harness 桌面应用要一直开着吗？** 不用。WorkBuddy 干活时会自己临时启动一个后台实例，干完就退——实测在桌面应用完全关闭时照常工作。你想开就开、想关就关，互不影响。
 
 ## 安全吗
 
