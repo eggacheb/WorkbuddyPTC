@@ -14,6 +14,8 @@
 | 工具声明 | `mcp/tools-sdk.md`（生成物，已提交） | 模型读它才知道有哪些工具、什么签名 |
 | 技能 | `skill/SKILL.md`，已装到 `~/.workbuddy/skills/wbptc/` | 告诉模型什么时候该写程序、什么时候照旧直通调用 |
 
+**桌面应用不需要保持运行。** 2026-10-15 实测：桌面应用完全关闭（零进程）后跑 PTC 程序——`1+1=2`、`ops_glob` 找到文件、985ms 正常返回，且执行进程跑完即退、不留驻留。原因：`dsh.cmd` 是独立启动器，每次调用以 `ELECTRON_RUN_AS_NODE=1` 模式**临时启动一个 `DeepSeek Harness.exe` 新实例**（无窗口、不连接已运行的 GUI）。两者唯一共享的是磁盘上的安装文件——升级或卸载 dsh 后跑一次 `scripts/check.sh` 即可。
+
 改了 `skill/` 或 `mcp/server.js` 之后要同步出去：
 
 ```sh
