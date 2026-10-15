@@ -74,16 +74,25 @@
 
 ## 部署（三步）
 
-### 第 1 步：把项目放到电脑上
+### 第 1 步：下载项目
 
-把整个项目文件夹放到任意位置，比如 `D:\code\WorkbuddyPTC`（路径建议用纯英文）。
+打开 **Git Bash**（开始菜单搜索 "Git Bash"；还没装 Git 的话先看上面的前提表格），运行：
+
+```sh
+git clone https://github.com/eggacheb/WorkbuddyPTC.git /d/code/WorkbuddyPTC
+```
+
+这会把项目下载到 `D:\code\WorkbuddyPTC`。说明：
+
+- Git Bash 里 `/d/code/` 就是 D 盘的 `\code\` 文件夹——想放到别处，改这段路径即可（建议用纯英文路径）
+- 如果下载很慢，多半是网络问题，换个时间重试即可
 
 ### 第 2 步：一键部署
 
-打开 **Git Bash**（开始菜单搜索 "Git Bash"），粘贴运行：
+继续在 Git Bash 里运行：
 
 ```sh
-cd /d/code/WorkbuddyPTC      # ← 换成你实际放项目的位置
+cd /d/code/WorkbuddyPTC      # ← 换成你实际下载的位置
 bash scripts/setup.sh
 ```
 
@@ -142,6 +151,23 @@ bash scripts/setup.sh
 - **不碰你的 DeepSeek Harness** —— 完全独立运行，不读也不写它自己的设置；桌面应用开不开都不影响
 - **能力范围 = 你本机的手动操作** —— 程序能读写文件、能跑命令，就像你自己在电脑上操作一样；没有额外的联网上报、没有后台驻留
 - **跑完即退** —— 每次执行起一个独立进程，结束就退，不留任何常驻
+
+## 它站在谁的肩膀上
+
+这个项目自己写的代码不多，能力主要来自这几个开源项目，在此致谢：
+
+| 组件 | 作者 | 在这里的角色 | 许可证 |
+| --- | --- | --- | --- |
+| [**DeepSeek Harness**](https://github.com/deepseek-ai/deepseek-harness) | DeepSeek | 整个执行环境：PTC 机制、工具注册表、TypeScript 类型剥离、进程与沙箱管理 | MIT |
+| [**dsh-ptc-plus**](https://github.com/muyuanjin/dsh-ptc-plus) | muyuanjin | 执行内核：把 `run_code` 升级为会话级 TypeScript REPL——程序里的系统命令能力、完整 TS 语法都来自它 | MIT |
+| [**dsh-ops**](https://github.com/T-Auto/dsh-ops) | T-Auto | `ops_*` 文件工具（Rust 实现）：批量找文件、搜内容、读文件、批量替换，自带分页与预演 | MIT AND Apache-2.0 |
+| [**MCP TypeScript SDK**](https://github.com/modelcontextprotocol/typescript-sdk) | MCP 社区 | WorkBuddy 与执行器之间的协议层 | MIT |
+
+另外几件应该单独说的事：
+
+- **dsh-ops 的测试工具**（`test/lib/host.mjs`）示范了官方的调用方式，帮本项目解决了"会话身份"这道坎；它硬性拒绝在真实 `DSH_HOME` 上运行的做法，与本项目 `scripts/dsh.sh` 的隔离守卫是同一思路——等于给我们的隔离设计背了书。
+- **DeepSeek Harness 的设计文档**明确写着"无 agent 的直接执行照样能跑"（*Direct executions without an agent still run*）——本项目"零 agent 架构、不花一分钱"正建立在这条设计之上。
+- **dsh-ops 的技术文档**如实标注了它自己的测量口径（而不是只宣传数字）——本项目引用它时因此少走了弯路，值得尊敬。
 
 ---
 
