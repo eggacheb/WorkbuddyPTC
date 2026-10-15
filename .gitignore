@@ -7,3 +7,6 @@ build/
 !.env.example
 .DS_Store
 Thumbs.db
+
+# 本项目自己的 DSH_HOME。绝不要指向用户的 ~/.dsh。
+.dsh-home/

@@ -1,0 +1,55 @@
+# wbptc profile 的 patch 层
+#
+# 基线：@deepseek-ai/dsh-sdk-minimal（一棵独立树，不挂在 dsh-base 上）
+# 本层做两件事：
+#   1. 关掉所有能走到付费 API 的行（见 ADR-0001）
+#   2. 补上 PTC 执行链所需、而 sdk-minimal 没有提供的服务
+#
+# 由 scripts/dsh.sh 应用：它会先把 DSH_HOME 钉在项目内的 .dsh-home/，
+# 并抹掉模型凭据环境变量（见 ADR-0003）。
+#
+# 校验方式（不启动、不联网）：
+#   scripts/dsh.sh --profile wbptc --dump-config
+
+# ---- 1. 关掉模型侧：让 dsh 的模型在代码路径上不存在 ----
+- id: llm-deepseek
+  disabled: true
+- id: deepseek-llm-api-extensions
+  disabled: true
+- id: llm-retry
+  disabled: true
+- id: session-title
+  disabled: true
+
+# ---- 2. 补上 PTC 执行链 ----
+- insert:
+    - id: filesystem
+      name: '@deepseek-ai/dsh-fs-local'
+
+    - id: ptc-runtime-node
+      name: '@deepseek-ai/dsh-ptc-runtime-node'
+      config:
+        executionMode: per-call
+        timeoutMs: 120000
+        maxTimeoutMs: 600000
+        maxOutputBytes: 67108864
+        maxOldGenerationSizeMb: 512
+        maxMessageBytes: 134217728
+        maxPendingCalls: 128
+        graceMs: 3000
+
+    - id: tool-fs
+      name: '@deepseek-ai/dsh-tool-fs'
+      config:
+        read: true
+        readImage: true
+        write: true
+        edit: true
+
+    - id: tool-fs-search
+      name: '@deepseek-ai/dsh-tool-fs-search'
+
+# ---- 3. 让注册表进入 PTC 模式：wire 上只剩 run_code ----
+- id: tools
+  config:
+    mode: ptc
