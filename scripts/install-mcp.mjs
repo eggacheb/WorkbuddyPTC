@@ -7,7 +7,8 @@
  *   - 写前备份：文件名带时间戳，写坏了随时能还原
  *   - 路径全部动态：command 用当前 node 的可执行文件（process.execPath），
  *     args 用本仓库的 mcp/server.js——所以仓库放哪都行，换机器也不用改
- *   - DSH_BIN 由调用方（setup.sh）通过环境变量传入，写进 server 的 env
+ *   - DSH_BIN 优先取环境变量（setup.sh 会导出），没拿到时自己按常见位置找一遍
+ *     （scripts/lib-find-dsh.mjs，与 mcp/server.js 共用同一份候选表）
  *
  * 用法：
  *   node scripts/install-mcp.mjs           # 写入
@@ -17,6 +18,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { findDsh } from './lib-find-dsh.mjs'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const WORKBUDDY_DIR = path.join(homedir(), '.workbuddy')
@@ -47,7 +49,7 @@ function toWindowsPath(p) {
 }
 
 const nodeBin = pickNode()
-const dshBin = toWindowsPath(process.env.DSH_BIN ?? '')
+const dshBin = toWindowsPath(findDsh() ?? '')
 
 const entry = {
   type: 'stdio',
@@ -84,5 +86,6 @@ console.log(`  node：  ${nodeBin}`)
 if (dshBin) {
   console.log(`  dsh：   ${dshBin}`)
 } else {
-  console.log('  [!] 没有拿到 DSH_BIN —— server 将回退到内置默认路径，建议通过 scripts/setup.sh 运行本脚本。')
+  console.log('  [!] 没找到 dsh —— 配置里不写 DSH_BIN，server 运行时还会自己找一遍；')
+  console.log('      若 DeepSeek Harness 装在非默认位置，请在 MCP 配置里手工补上 DSH_BIN。')
 }

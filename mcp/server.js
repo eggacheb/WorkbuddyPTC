@@ -15,7 +15,7 @@
  *   node mcp/server.js
  *
  * 环境变量：
- *   DSH_BIN            覆盖 dsh 可执行文件路径
+ *   DSH_BIN            覆盖 dsh 可执行文件路径；未设置时按常见安装位置查找
  *   WBPTC_TIMEOUT_MS   单次执行上限，默认 300000
  *   WBPTC_WORKSPACE    默认工作目录；未设置时用 WorkBuddy 传来的 cwd
  */
@@ -27,6 +27,7 @@ import { fileURLToPath } from 'node:url'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
+import { findDsh } from '../scripts/lib-find-dsh.mjs'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DSH_HOME = path.join(REPO_ROOT, '.dsh-home')
@@ -34,8 +35,9 @@ const SDK_DOC = path.join(REPO_ROOT, 'mcp', 'tools-sdk.md')
 const PROFILE = 'wbptc'
 const TIMEOUT_MS = Number(process.env.WBPTC_TIMEOUT_MS ?? 300_000)
 
-const DSH_BIN = process.env.DSH_BIN
-  ?? 'C:\\Users\\Administrator\\AppData\\Local\\Programs\\DeepSeek Harness\\resources\\runtime\\cli\\bin\\dsh.cmd'
+// null = 没找到。不在这里抛：server 要能起来并把「找不到 dsh」作为一次调用的
+// 结果返回，模型才看得到原因；启动即崩只会让 WorkBuddy 显示一个连接失败。
+const DSH_BIN = findDsh()
 
 /** 抹掉一切可能被 dsh 读到的模型凭据：即使哪一行 provider 被误开启也无凭证可用。 */
 function safeEnv(workspace) {
@@ -91,14 +93,33 @@ function execDsh(programFile, workspace) {
   })
 }
 
+/** 找不到 dsh 时给模型和用户的修法提示。 */
+const NO_DSH_HINT = [
+  '找不到 dsh（DeepSeek Harness 的执行部件），本次调用没有执行。',
+  '',
+  '两个修法：',
+  '  1. 跑一次 scripts/setup.sh —— 它会定位 dsh 并把这个路径写进 MCP 配置；',
+  '  2. 或手工在 MCP 配置的 env 里补一条 DSH_BIN，指向 dsh.cmd 的绝对路径。',
+  '',
+  '（默认查找位置：%LOCALAPPDATA%\\Programs\\DeepSeek Harness\\...\\dsh.cmd 与',
+  ' C:\\Program Files\\DeepSeek Harness\\...\\dsh.cmd；装在别处就必须显式指定。）',
+].join('\n')
+
 async function runProgram({ code, description, workspace }) {
+  if (DSH_BIN === null) return { text: NO_DSH_HINT, isError: true }
+
   const dir = await mkdtemp(path.join(tmpdir(), 'wbptc-'))
   const file = path.join(dir, 'program.ts')
   await writeFile(file, code, 'utf8')
   try {
     const result = await execDsh(file, workspace ?? process.env.WBPTC_WORKSPACE ?? process.cwd())
-    // 过滤掉与程序无关的噪音，只留真正的诊断
-    const noise = /ExperimentalWarning|trace-warnings|^\[wbptc\] DSH_HOME|^\[wbptc\] 模型凭据/
+    // 过滤与程序无关的噪音，只留真正的诊断。三类：
+    //   - Node 的 ExperimentalWarning / trace-warnings（类型剥离是实验特性）
+    //   - runner 每次都打印的耗时行 —— 它是给手动跑（scripts/dsh.sh）的人看的；
+    //     进了会话，这段"诊断"只会让模型以为成功路径上出了错
+    //   - 后三条来自 scripts/dsh.sh 的守卫提示；MCP 路径不经过它（凭据由本文件的
+    //     safeEnv 抹除），属于防御性保留
+    const noise = /ExperimentalWarning|trace-warnings|^\[wbptc\] 耗时|^\[wbptc\] DSH_HOME|^\[wbptc\] 会话 cwd|^\[wbptc\] 模型凭据/
     const diagnostics = result.stderr
       .split('\n')
       .filter(line => line.trim() !== '' && !noise.test(line))
