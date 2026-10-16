@@ -125,35 +125,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [{
     name: 'run_program',
     description: [
-      'Run a TypeScript program in a dsh PTC runtime, where every file and shell',
-      'operation is an awaitable function on `tools`.',
+      '在本地 PTC 运行时里执行一段 TypeScript 程序：程序里能读写、搜索文件、做批量替换，也能跑系统命令（git、构建、PowerShell）。',
       '',
-      'Use this when a task needs MANY tool calls: reading a dozen files, globbing then',
-      'filtering then aggregating, looping or branching over results, cross-referencing.',
-      'The whole sequence runs in ONE execution and only what the program returns comes',
-      'back — every intermediate result stays out of this conversation.',
+      '用于批量任务——批量阅读（翻一批文件找内容、跨文件搜索汇总）、批量修改（一批文件做替换）、以及"读文件 + 跑命令"的复合任务。整串操作在一次执行里跑完，中间过程不进入对话，只有程序 return 的结果回来。',
       '',
-      'Do NOT use it for a single read, edit or command: the program has to boot a runtime,',
-      'so one call through it costs more than calling the tool directly.',
+      '单发操作不要用它（读一个文件、改一行、跑一条命令，直接调对应工具）：程序每次要从头启动一遍运行时（基础约 0.7 秒），为单个动作绕路不划算。',
       '',
-      `The program is an async TypeScript function body (top-level await and return allowed).`,
-      `Call tools as \`await tools.name(args)\`. Read the full signature list, the calling`,
-      `rules and the available bindings at: ${SDK_DOC}`,
+      `程序是 async TypeScript 函数体（可用顶层 await 和 return），工具用 \`await tools.name(args)\` 调用。完整签名列表、调用规则与可用绑定见：${SDK_DOC}`,
     ].join('\n'),
     inputSchema: {
       type: 'object',
       properties: {
         code: {
           type: 'string',
-          description: 'The program: an async TypeScript function body. Use `return` for the value you want back.',
+          description: '程序本体：async TypeScript 函数体；用 `return` 返回要带回的值。',
         },
         description: {
           type: 'string',
-          description: 'Short summary of what the program does, for display.',
+          description: '一句话说明这个程序做什么（用于展示）。',
         },
         workspace: {
           type: 'string',
-          description: 'Absolute working directory for the run. Defaults to the current project directory.',
+          description: '执行用的绝对工作目录；默认使用当前项目目录。',
         },
       },
       required: ['code', 'description'],
