@@ -21,7 +21,7 @@ _Avoid_: 模式（太泛）, Creator、code（那是显示名或错误 id，不�
 _Avoid_: 框架, 外壳
 
 **run_code**:
-PTC 模式下唯一的 wire 工具，参数为 `code` 与 `description`，其中 `code` 是 TypeScript 的 async 函数体。返回值形状为 `{ logs: string[], result?: JsonValue }`。它是 PTC 最可移植的那一层。
+PTC 模式下唯一的 wire 工具，参数为 `code` 与 `description`，其中 `code` 是 TypeScript 的 async 函数体。程序输出 = `console.log` 的行 + `return` 的值，**没有额外的包裹层**（内部协议结构里曾有 `logs` / `result` 两个字段，那是更底层的东西，模型看不到）。它是 PTC 最可移植的那一层。
 _Avoid_: execute_code, code_runner, 代码执行工具
 
 **直通调用 (native call)**:

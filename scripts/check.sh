@@ -80,7 +80,7 @@ echo
 # ---------- 静态：语法 ----------
 echo "语法"
 if command -v node >/dev/null 2>&1; then
-  for f in runner/index.js mcp/server.js; do
+  for f in runner/index.js mcp/server.js scripts/lib-find-dsh.mjs scripts/install-mcp.mjs; do
     if node --check "$f" >/dev/null 2>&1; then ok "node --check $f"; else bad "node --check $f"; fi
   done
   for f in mcp/package.json; do
