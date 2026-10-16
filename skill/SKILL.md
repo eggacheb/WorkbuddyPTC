@@ -27,7 +27,7 @@ run_program({
 })
 ```
 
-- `code` 是 **async 函数的函数体**，可用顶层 `await` 与 `return`。类型注解会被剥掉（erasable 语法），别用 `enum` / namespace
+- `code` 是 **async 函数的函数体**，可用顶层 `await` 与 `return`。类型注解是提示性的、执行前会被剥离；`enum` / namespace 等完整语法在 ptc-plus 内核下可用（见「程序里的能力」）
 - **`return` 的值就是要拿的结果本身** —— 直接原样返回，没有 `{ logs, value }` 那一层包裹
 - **返回值必须是严格无损 JSON**：任何 `undefined` 属性都会让整个程序失败（见"输出卫生"）
 - 只读调用可以用 `Promise.all` 并发；写入类调用按提交顺序独占执行
@@ -94,5 +94,5 @@ return clean({ ... })
 
 - `invalid-output: program completion must be lossless JSON`：返回值里有 `undefined`，见"输出卫生"
 - `POLICY_DENIED`：参数或路径不合规（dsh-ops 的前置检查）
-- `PTY owner`：用了 `pwsh`，它在这个架构下不可用，改直通
+- `PTY owner`：用了 `pwsh` —— 它是需要注册终端的**工具**，本架构（零 agent）下不可用。要跑 PowerShell 就在程序里用 `child_process`（`execFile` + 绝对路径）
 - `worker-exit`：PTC 子进程异常终止，通常意味着沙箱配置被改动过——**不要**把 `profile/cordis.patch.yml` 里的沙箱模式改成 `workspace-write` 或 `read-only`，实测会让整条链路不可用（见 `docs/adr/0004-danger-full-access-on-windows.md`）

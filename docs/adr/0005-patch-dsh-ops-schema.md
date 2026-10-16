@@ -14,7 +14,7 @@ dsh-ops 用原始 JSON Schema 手写工具定义，带了三个子集外的数�
 
 ## Consequences
 
-- **改的是第三方包。** dsh-ops 升级会覆盖补丁，参数类型会**静默**退回 `unknown`。所以 `scripts/describe-tools.sh` 里有一道断言：生成后若仍见 `: unknown;` 就报错退出——宁可生成失败，也不要静默退化。
+- **改的是第三方包。** dsh-ops 升级会覆盖补丁，参数类型会**静默**退回 `unknown`。所以 `scripts/describe-tools.sh` 里有一道断言：生成后若仍见 `unknown` 就报错退出——宁可生成失败，也不要静默退化。（2026-10-16 补充：匹配已从宽泛的 `: unknown;` **收紧**为 `^  ops_[a-z_]+: unknown;$`——dsh-ptc-plus 的声明里合法含 `unknown`，宽泛匹配会误报，见 ADR-0006 适配点 6。）
 - 补丁脚本自己检测重复应用（文件头有标记行），可安全重跑。
 - 上游的正确修法是给 dsh-ops 提 issue/PR 去掉这三个关键字；一旦它自己改好，本补丁与断言都应删除。
 - 补丁只动 `contract.js` 一个文件，`shell` / `background` / `ptc` 三个组件不受影响。

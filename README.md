@@ -219,4 +219,6 @@ node scripts/install-mcp.mjs                                                    
 | [`docs/adr/`](docs/adr/) | 6 份决策记录：为什么这么设计 |
 | [`skill/SKILL.md`](skill/SKILL.md) | 给模型的 PTC 使用说明（由 setup 装到 `~/.workbuddy/skills/wbptc/`） |
 | [`mcp/tools-sdk.md`](mcp/tools-sdk.md) | 程序里可用的工具签名（生成物，不要手改） |
+| [`examples/`](examples/) | 六个可手动跑的程序样例（`bash scripts/dsh.sh --profile wbptc examples/03-batch-scan.ts`） |
+| [`AGENTS.md`](AGENTS.md) | 给 AI 编码代理的项目导航与约定 |
 | [`GLOSSARY.md`](GLOSSARY.md) | 术语文档 |

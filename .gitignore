@@ -11,6 +11,9 @@ Thumbs.db
 # 本项目自己的 DSH_HOME。绝不要指向用户的 ~/.dsh。
 .dsh-home/
 
+# AGENTS.md 约定的临时脚本目录（探测、一次性验证）。不是源码。
+.scratch/
+
 # MCP server 的依赖（mcp/tools-sdk.md 是生成物，但要提交：它是模型读的接口说明）
 mcp/node_modules/
 mcp/package-lock.json

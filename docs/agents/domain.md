@@ -17,10 +17,16 @@ This repo is **single-context**:
 ```
 /
 ├── GLOSSARY.md
+├── AGENTS.md
 ├── docs/adr/
 │   ├── 0001-<decision>.md
 │   └── 0002-<decision>.md
-└── src/
+├── mcp/          # MCP server —— WorkBuddy 侧的入口（暴露 run_program）
+├── profile/      # dsh profile 的 patch 层（关模型行、补执行链）
+├── runner/       # 把程序直接送进 run_code 的入口插件（不经模型）
+├── scripts/      # 部署、回归检查、schema 补丁
+├── skill/        # 给模型的 PTC 使用说明（装到 ~/.workbuddy/skills/）
+└── examples/     # 可手动跑的程序样例
 ```
 
 ## Use the glossary's vocabulary
@@ -33,4 +39,4 @@ If the concept you need isn't in the glossary yet, that's a signal: either you'r
 
 If your output contradicts an existing ADR, surface it explicitly rather than silently overriding:
 
-> _Contradicts ADR-0007 (event-sourced orders), but worth reopening because…_
+> _Contradicts ADR-0004 (danger-full-access on Windows), but worth reopening because…_

@@ -4,7 +4,7 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 ## Local environment
 
-- Repo: `eggacheb/WorkbuddyPTC` (private). `origin` is set, so `gh` infers the repo automatically inside the clone.
+- Repo: `eggacheb/WorkbuddyPTC` (public). `origin` is set, so `gh` infers the repo automatically inside the clone.
 - **Installed `gh` is 2.67.0.** Sub-issue commands require `gh` 2.94+, so use the `gh api` fallback documented under **Make an issue a sub-issue of a parent** and **Wayfinding operations** below until `gh` is upgraded. Everything else in this file works on 2.67.0.
 
 ## Conventions

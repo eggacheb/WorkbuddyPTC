@@ -16,10 +16,14 @@
 
 **桌面应用不需要保持运行。** 2026-10-15 实测：桌面应用完全关闭（零进程）后跑 PTC 程序——`1+1=2`、`ops_glob` 找到文件、985ms 正常返回，且执行进程跑完即退、不留驻留。原因：`dsh.cmd` 是独立启动器，每次调用以 `ELECTRON_RUN_AS_NODE=1` 模式**临时启动一个 `DeepSeek Harness.exe` 新实例**（无窗口、不连接已运行的 GUI）。两者唯一共享的是磁盘上的安装文件——升级或卸载 dsh 后跑一次 `scripts/check.sh` 即可。
 
-改了 `skill/` 或 `mcp/server.js` 之后要同步出去：
+改了 `skill/` 或 `mcp/server.js` 之后，各自的同步方式不一样：
 
 ```sh
+# skill/ —— 拷到 WorkBuddy 的技能安装位置
 cp skill/SKILL.md ~/.workbuddy/skills/wbptc/SKILL.md
+
+# mcp/server.js —— 不用拷：MCP 每次拉起读的就是仓库里这一份，
+# 改完重启 WorkBuddy 即可（工具描述等协议层内容在握手时读取）
 ```
 
 `~/.workbuddy/mcp.json` 里的配置由脚本自动写入（`setup.sh` 会调用它，也可单独跑）：
@@ -66,13 +70,19 @@ printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion
 同时暴露了三个使用边界，都已写进 `skill/SKILL.md`：
 
 - **返回值必须是严格无损 JSON**：任何 `undefined` 属性都报 `invalid-output: program completion must be lossless JSON`，整个程序算失败（其实已经跑完了，死在最后序列化那步）。属性值可能缺失时用清理函数过一遍
-- **没有 shell**：`pwsh` 在绑定里但执行必失败（`agent "undefined" is not the registered PTY owner`）；`ops_bash` 未注册。**命令类操作直通调用宿主工具，不要写进程序**
+- **没有 shell**（⚠️ **次日已推翻，见下节**）：当时 `pwsh` 在绑定里但执行必失败（`agent "undefined" is not the registered PTY owner`）、`ops_bash` 未注册，所以结论是"命令类操作直通调用宿主工具"。2026-10-16 换用 dsh-ptc-plus 后，程序内 `child_process` 已直接可用——**命令现在可以写进程序**。（`pwsh` 这个**工具**本身仍不可用；要跑 PowerShell 就在程序里用 `child_process` 走绝对路径。）
 - `ops_inspect_local_file` 返回 `items: [{ line, path, text }]`，和 dsh 自带 `read` 的 `lines: [{ number, text }]` 形状不同，别混
 
 ## B. 手动跑一个程序（调试用）
 
 ```sh
 bash scripts/dsh.sh --profile wbptc examples/03-batch-scan.ts
+```
+
+会话 cwd 默认是**你运行这条命令时所在的目录**（由 `scripts/dsh.sh` 注入），所以从仓库根跑示例时，程序里的 `process.cwd()` 就是仓库根。要换基准（例如去扫描别的项目）：
+
+```sh
+WBPTC_WORKSPACE=D:/some/project bash scripts/dsh.sh --profile wbptc examples/03-batch-scan.ts
 ```
 
 ## 构建流程
@@ -134,7 +144,7 @@ git config core.hooksPath .githooks
 
 | 变量 | 默认 | 含义 |
 | --- | --- | --- |
-| `WBPTC_WORKSPACE` | 程序文件所在目录 | 沙箱作用根，同时作为会话 cwd。dsh-ops 的文件工具以它为基准解析相对路径 |
+| `WBPTC_WORKSPACE` | 运行 `scripts/dsh.sh` 时所在的目录；MCP 路径下是调用方给的工作区 | 沙箱作用根，同时作为会话 cwd——程序里 `process.cwd()` 与 dsh-ops 相对路径的基准。MSYS 风格（`/d/...`）会被自动转成 Windows 格式 |
 | `WBPTC_SANDBOX` | `danger-full-access` | 沙箱模式覆盖，用于回归与上游修复后的重测（见下） |
 
 ## 沙箱：为什么默认是全开
@@ -216,7 +226,9 @@ bash scripts/dsh.sh plugin --profile wbptc add dsh-ops
 | `ops_replace` | 跨文件批量替换（`dryRun` 先看） |
 | ~~`ops_bash`~~ | **不可用**，见下 |
 
-**`ops_bash` 的缺席是架构性的，不是配置问题。** dsh-ops 只在 `agent/created` 事件上发布 bash 工具，并要求 agent 自带 Cordis fiber（`lib/session-shells.js` 的 `attach()`）。本项目是无 agent 架构（ADR-0001），没有 agents 注册表，它永远不会注册。同理 `pwsh` 虽在绑定里，执行必失败（PTY owner 检查同样要求 agents 注册表）。**要跑命令（git、构建、脚本）就在会话里直通调用宿主工具**，这正落在 ADR-0002 的第二种约定上。
+**`ops_bash` 的缺席是架构性的，不是配置问题。** dsh-ops 只在 `agent/created` 事件上发布 bash 工具，并要求 agent 自带 Cordis fiber（`lib/session-shells.js` 的 `attach()`）。本项目是无 agent 架构（ADR-0001），没有 agents 注册表，它永远不会注册。同理 `pwsh` **工具**虽在绑定里，执行必失败（PTY owner 检查同样要求 agents 注册表）。
+
+**但这不等于程序里跑不了命令。** 2026-10-16 换用 dsh-ptc-plus 之后，程序内 `child_process` 直接可用（见下节「dsh-ptc-plus：执行内核与进程能力」）。要跑 git、构建、脚本时有两条路：**单发走直通调用宿主工具，批量或复合任务写进程序**——按 ADR-0002 的分界来选。
 
 ## 会话身份
 
