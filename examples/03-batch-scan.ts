@@ -8,7 +8,7 @@
 //
 // 注意 Promise.all：dsh-ops 的验收文档写明"只读工具可并发"——PTC 只会重叠被
 // 工具自己声明为并发安全的调用，写入类调用仍然独占串行。
-const ROOT = 'D:/code/WorkbuddyPTC'
+const ROOT = process.cwd() // = 会话 cwd（从仓库根运行时即仓库根），无需硬编码盘符
 
 const listing = await tools.ops_glob({
   path: ROOT,

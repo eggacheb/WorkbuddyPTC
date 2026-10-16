@@ -15,7 +15,11 @@
  * 用法： dsh --profile wbptc <程序文件路径>
  */
 
-/** 等整棵树挂完再动手，否则注册表可能是半挂载状态。 */
+/**
+ * `loader.await()` 之后的可选缓冲。实测 0 就够——await 返回时注册表已经完整
+ * （担心的"半挂载"没有发生）。保留这个旋钮：将来若出现注册表不完整的症状，
+ * 先把它调大排查。
+ */
 const LOADER_SETTLE_MS = 0
 
 export const name = 'wbptc-runner'
@@ -78,6 +82,10 @@ async function run(ctx, exit) {
   const controller = new AbortController()
   const started = Date.now()
 
+  // 会话 cwd 的来源：WBPTC_WORKSPACE 优先——正常流程里它总是被设好
+  // （MCP 路径由 mcp/server.js 注入，手动路径由 scripts/dsh.sh 注入"运行目录"）。
+  // 兜底到程序文件所在目录，只在绕过 dsh.sh 直接调 dsh 二进制时才走到。
+  // 这个值决定了程序里 process.cwd() 与 dsh-ops 相对路径的基准。
   const { dirname, resolve } = await import('node:path')
   const cwd = resolve(process.env.WBPTC_WORKSPACE ?? dirname(resolve(programPath)))
 

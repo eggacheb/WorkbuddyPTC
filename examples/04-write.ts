@@ -4,7 +4,8 @@
 // 批处理，写入使用内容 revision 校验与原子替换。
 //
 // 目标文件在 .dsh-home/scratch/ 下（gitignore 内），不污染仓库。
-const TARGET = 'D:/code/WorkbuddyPTC/.dsh-home/scratch/write-test.txt'
+// 基准用 process.cwd()（= 会话 cwd，从仓库根运行时即仓库根），clone 到哪都行。
+const TARGET = process.cwd() + '/.dsh-home/scratch/write-test.txt'
 
 // 1) 先预演：只观察，不落盘
 const preview = await tools.ops_replace({

@@ -3,7 +3,7 @@
 // 这是"批量读"的典型场景，也是 ADR-0002 里该走程序化调用的那一类：
 // glob → 过滤 → 并行读取 → 汇总，全部在一次执行里完成。
 // 换成逐个工具调用，这里是 1 + N 次模型往返。
-const ROOT = 'D:/code/WorkbuddyPTC'
+const ROOT = process.cwd() // = 会话 cwd（从仓库根运行时即仓库根），无需硬编码盘符
 
 const tracked = await tools.ops_glob({
   path: ROOT,

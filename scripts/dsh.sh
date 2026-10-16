@@ -44,6 +44,22 @@ if ! DSH_BIN="$(find_dsh)"; then
 fi
 export DSH_BIN
 
+# --- 会话 cwd：默认取"你运行命令时所在的目录" ---
+# 它同时是程序里 process.cwd() 与 dsh-ops 相对路径的基准。手动跑示例时，
+# 从仓库根运行就等于仓库根——比"程序文件所在目录"（runner 的兜底）更符合直觉，
+# 也不会因为示例放在 examples/ 下就把基准带偏。
+#
+# 格式要求：Node 的路径解析不认 MSYS 风格（/d/...），会拼成 C:\d\...。
+# 所以调方给的值先规范化一遍，再补默认值。
+case "${WBPTC_WORKSPACE:-}" in
+  /[a-zA-Z]/*)
+    WBPTC_WORKSPACE="$(cd "$WBPTC_WORKSPACE" 2>/dev/null && pwd -W)" || WBPTC_WORKSPACE=""
+    ;;
+esac
+# pwd -W 是 git bash 的扩展（输出 D:/...）；非 MSYS 环境（Linux/WSL）没有它，回退到 pwd。
+export WBPTC_WORKSPACE="${WBPTC_WORKSPACE:-$(pwd -W 2>/dev/null || pwd)}"
+
 echo "[wbptc] DSH_HOME=$DSH_HOME" >&2
+echo "[wbptc] 会话 cwd=$WBPTC_WORKSPACE" >&2
 echo "[wbptc] 模型凭据：已抹除（DEEPSEEK_API_KEY 未设置）" >&2
 exec "$DSH_BIN" "$@"
