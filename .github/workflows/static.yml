@@ -1,0 +1,23 @@
+name: static
+
+# 只跑与本机环境无关的检查：语法、JSON、frontmatter。
+# 依赖 dsh / .dsh-home / ~/.dsh 的回归项留在本地跑（scripts/check.sh 全量模式）——
+# 公开仓库的 PR 不可能带上一个装好的 DeepSeek Harness。
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 静态检查（node --check / bash -n / JSON / frontmatter）
+        shell: bash
+        run: bash scripts/check.sh --ci
