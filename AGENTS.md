@@ -9,6 +9,10 @@
 - Tool signatures a program may call: `mcp/tools-sdk.md` (generated; never hand-edit).
 - Regression check: `bash scripts/check.sh` after touching `profile/` or `runner/`.
 
+## Tool preference
+
+Batch work — 3 or more files, cross-file search/aggregate, or "read files then run a command" — starts with `mcp__wbptc__run_program`, not with a probe read. It can sit behind deferred loading: the ToolSearch step is part of the normal path, not a reason to fall back to Read/Grep/Bash. Single-file work stays on native tools.
+
 ## Conventions
 
 - Long text goes in files: multi-line code or regexes go to a script file (`.scratch/` or `scripts/`) and run from there; commit messages go through `git commit -F <file>`; the same applies to any command whose text must name `pwsh` or `cmd.exe`.

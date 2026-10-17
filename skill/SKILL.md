@@ -1,6 +1,6 @@
 ---
 name: wbptc
-description: "Run a batch of file operations as one TypeScript program in a dsh PTC runtime, through the run_program tool. Use when a task needs many tool calls — reading a dozen files, globbing then filtering then aggregating, looping or branching over results, cross-referencing several sources. Also use for post-upgrade maintenance: after dsh is updated, check plugin versions, regenerate tool declarations, and re-run the regression. Not for single reads, edits or commands."
+description: "Run a batch of file operations as one TypeScript program in a dsh PTC runtime, through the run_program tool. Use when a task needs many tool calls — 3+ files, reading a dozen files, globbing then filtering then aggregating, looping or branching over results, cross-referencing several sources, surveying or batch-replacing across a whole repo (批量阅读、批量修改、整个仓库). Also use for post-upgrade maintenance: after dsh is updated, check plugin versions, regenerate tool declarations, and re-run the regression. Not for single reads, edits or commands."
 ---
 
 # wbptc —— 把一批工具调用写成一个程序
@@ -8,6 +8,8 @@ description: "Run a batch of file operations as one TypeScript program in a dsh 
 `run_program` 工具会把一段 TypeScript 程序交给 dsh 的 PTC 运行时执行。程序里每个文件操作都是 `tools` 上的可等待函数，**整串调用在一次执行里跑完，只有程序 return 的值回到对话**。
 
 ## 什么时候用
+
+**触发阈值**：一次任务要碰 **3 个以上文件**、或要跨文件搜索/汇总/比对，就直接走程序——不要先 Read 几个文件"看看情况"再决定，那样已经浪费了轮次。
 
 **用**：一次任务需要很多次操作（读、改、命令都算）。
 
