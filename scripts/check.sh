@@ -74,6 +74,18 @@ else
       bad "插件缺失：$p —— 跑 scripts/setup.sh（会装缺失的插件）"
     fi
   done
+
+  # 描述层适配：dsh-ptc-plus < 0.5.1 在 dsh 0.2.1 下会把 run_code 的描述退化成
+  # "erasable syntax only — no enum or namespaces"。实测能力没坏（0.5.0 下 enum 照样
+  # 能跑），但模型看到描述会自我限制，不敢用 enum。0.5.1 才把描述修回来。
+  if [ -f ".dsh-home/profiles/wbptc/node_modules/dsh-ptc-plus/package.json" ]; then
+    PTC_PLUS_VER="$(node -p "require('./.dsh-home/profiles/wbptc/node_modules/dsh-ptc-plus/package.json').version" 2>/dev/null || echo 0.0.0)"
+    if node -e "const [a,b,c]=process.argv[1].split('.').map(Number);process.exit(a>0||(a===0&&(b>5||(b===5&&c>=1)))?0:1)" "$PTC_PLUS_VER"; then
+      ok "dsh-ptc-plus 版本 $PTC_PLUS_VER（>= 0.5.1，描述层已适配 dsh 0.2.1）"
+    else
+      bad "dsh-ptc-plus 版本 $PTC_PLUS_VER < 0.5.1 —— run_code 描述会退化，跑 scripts/setup.sh 更新"
+    fi
+  fi
 fi
 echo
 

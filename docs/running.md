@@ -228,6 +228,8 @@ bash scripts/dsh.sh plugin --profile wbptc add dsh-ops
 
 **`ops_bash` 的缺席是架构性的，不是配置问题。** dsh-ops 只在 `agent/created` 事件上发布 bash 工具，并要求 agent 自带 Cordis fiber（`lib/session-shells.js` 的 `attach()`）。本项目是无 agent 架构（ADR-0001），没有 agents 注册表，它永远不会注册。同理 `pwsh` **工具**虽在绑定里，执行必失败（PTY owner 检查同样要求 agents 注册表）。
 
+**2026-10-17 更新（dsh 0.2.1 + ptc-plus 0.5.1）**：绑定里多了两个——`working_directory`（读/切程序内 cwd，实测会同步改变 `process.cwd()`）与 `read_image`（读图片，本项目**不可用**：`no adapter registered for provider "none"`，零 agent 环境没有附件 provider）。同时 `edit` / `write` 的输出 `path` 改成规范化的绝对路径，`run_code` 描述里 `enum` / namespace 在 0.5.1 下恢复为"支持"（0.5.0 会退化成"仅可擦除语法"，能力其实都在，只是描述骗人）。
+
 **但这不等于程序里跑不了命令。** 2026-10-16 换用 dsh-ptc-plus 之后，程序内 `child_process` 直接可用（见下节「dsh-ptc-plus：执行内核与进程能力」）。要跑 git、构建、脚本时有两条路：**单发走直通调用宿主工具，批量或复合任务写进程序**——按 ADR-0002 的分界来选。
 
 ## 会话身份

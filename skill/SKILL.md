@@ -27,7 +27,7 @@ run_program({
 })
 ```
 
-- `code` 是 **async 函数的函数体**，可用顶层 `await` 与 `return`。类型注解是提示性的、执行前会被剥离；`enum` / namespace 等完整语法在 ptc-plus 内核下可用（见「程序里的能力」）
+- `code` 是 **async 函数的函数体**，可用顶层 `await` 与 `return`。类型注解是提示性的、执行前会被剥离；`enum` / namespace 等完整语法在 ptc-plus **>= 0.5.1** 下可用（见「程序里的能力」）
 - **`return` 的值就是要拿的结果本身** —— 直接原样返回，没有 `{ logs, value }` 那一层包裹
 - **返回值必须是严格无损 JSON**：任何 `undefined` 属性都会让整个程序失败（见"输出卫生"）
 - 只读调用可以用 `Promise.all` 并发；写入类调用按提交顺序独占执行
@@ -37,28 +37,32 @@ run_program({
 
 完整的类型声明与调用规则在 `mcp/tools-sdk.md`——`run_program` 的工具描述里贴了它在本机的绝对路径，**动手写程序前先按那个路径读它**；参数类型、枚举取值都在里面。
 
-**实测可用的绑定恰好这 10 个**：
+**实测可用的绑定恰好这 11 个**（2026-10-17，dsh 0.2.1 + ptc-plus 0.5.1）：
 
 ```
 read  write  edit  glob  grep
 ops_inspect_local_file  ops_grep  ops_glob  ops_replace
-pwsh
+pwsh  working_directory
 ```
 
-### 程序里的能力（2026-10-16 更新：系统命令已解锁）
+`read_image` 也在签名里，但**在本项目不可用**——报 `no adapter registered for provider "none"`（零 agent 环境没有附件 provider）。要看图片别绕它。
+
+### 程序里的能力（2026-10-17 更新：适配 dsh 0.2.1）
 
 执行内核是 **dsh-ptc-plus**（会话级 TypeScript REPL），程序是完整的 Node 运行时：
 
 - **文件能力**：`ops_*` 四件套 + `read` / `write` / `edit` / `glob` / `grep` 完整可用
+- **切换工作目录**：`working_directory({ cd: 'docs' })` 切换后，程序内 `process.cwd()` 与后续相对路径都跟着变；不传参数只读当前目录
 - **系统命令**：**`child_process` 直接可用**——`spawn` / `exec` / `execFile` 可以跑 cmd、PowerShell、编译（csc）、git 等任何本机程序（实测：写标记文件、跑 PowerShell 全部成功）。**需要跑命令时，可以写进程序**——复合任务（读文件 + 跑命令 + 汇总）在程序里一次做完
-- **TypeScript 全语法**：运行时 `enum` / namespace 都支持（不再是"仅可擦除语法"）
+- **TypeScript 全语法**：运行时 `enum` / namespace 都支持（实测通过）。**但需要 ptc-plus >= 0.5.1**——0.5.0 在 dsh 0.2.1 下工具描述会退化成"仅可擦除语法"，实测虽然能跑，但模型看描述会不敢用
 - 值传递增强：`undefined` / BigInt / NaN 等可直接返回——不过返回值保持干净 JSON 的习惯仍无害
 
 单发命令仍走直通更快（程序基础启动约 0.7 秒且多一跳，直通近即时）；**批量 + 复合任务才写程序**——这个分界没变，只是"复合"的空间变大了。
 
 ### 参数约定
 
-- 四个 `ops_*` 文件工具都以会话 cwd 为基准解析相对路径，只接受一个 `path`，**没有** `root` / `cwd` / `file_path` 别名；跨目录读取用绝对路径没问题
+- 四个 `ops_*` 文件工具都以会话 cwd 为基准解析相对路径，只接受一个 `path`，**没有** `root` / `cwd` / `file_path` 别名；跨目录读取用绝对路径没问题。程序里调 `working_directory({ cd })` 会改变这个基准（`process.cwd()` 同步变）
+- `edit` / `write` 的参数按 `file_path` 在前的顺序给（新版声明里明确要求，`content` / `old_string` / `new_string` 跟在后面）
 - `ops_glob` 与 `ops_grep` 不遍历符号链接、重解析点、隐藏文件和 `.git`
 - `ops_grep` 的 `pattern` 是 **Rust 正则**（且是字符串不是数组）；`ops_glob` 的 `pattern` 才是数组
 - `ops_replace` 的 `dryRun` 只观察不落盘；真正写入使用内容 revision 校验与原子替换

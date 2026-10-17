@@ -5,7 +5,7 @@
 # 它会做六件事：
 #   1. 检查前置（node、dsh）
 #   2. 建 wbptc profile（首次）
-#   3. 装 dsh-ops 插件（首次）
+#   3. 装插件（dsh-ops、dsh-ptc-plus）；版本不够新会自动升级
 #   4. 部署 profile 与入口插件，并生成工具声明
 #   5. 跑回归检查
 #   6. 接入 WorkBuddy：写 MCP 配置 + 安装技能
@@ -58,7 +58,7 @@ fi
 # 两个插件都必须装：
 #   dsh-ops      —— file 组件的四个 ops_* 工具（批量文件操作主力）
 #   dsh-ptc-plus —— 执行内核（替换原版 ptc-runtime，解锁程序内系统命令能力，见 ADR-0006）
-step "3/6  安装插件（dsh-ops、dsh-ptc-plus）"
+step "3/6  安装/升级插件（dsh-ops、dsh-ptc-plus）"
 if [ -d "$PROFILE_DIR/node_modules/dsh-ops" ]; then
   ok "dsh-ops 已安装，跳过"
 else
@@ -70,15 +70,32 @@ else
   ok "dsh-ops 已安装"
 fi
 
+# dsh-ptc-plus 光"装了"不够，还要够新：< 0.5.1 在 dsh 0.2.1 下会把 run_code
+# 的描述退化成"仅可擦除语法"。实测能力没坏（enum 照样能跑），但模型看到描述
+# 会自我限制，不敢用 enum / namespace。所以这里做最小版本检查，旧了就升级。
+PTC_PLUS_MIN="0.5.1"
 if [ -d "$PROFILE_DIR/node_modules/dsh-ptc-plus" ]; then
-  ok "dsh-ptc-plus 已安装，跳过"
+  # 用相对路径读版本：$PROFILE_DIR 是 MSYS 风格（/d/...），Node 的 require 在
+  # Windows 上解析不了，会 fallback 成 0.0.0，导致每次运行都误判成"要升级"。
+  # 脚本开头已 cd 到仓库根，所以相对路径是可靠的。
+  CUR_PTC="$(node -p "require('./.dsh-home/profiles/wbptc/node_modules/dsh-ptc-plus/package.json').version" 2>/dev/null || echo 0.0.0)"
+  if node -e "const [a,b,c]=process.argv[1].split('.').map(Number);process.exit(a>0||(a===0&&(b>5||(b===5&&c>=1)))?0:1)" "$CUR_PTC"; then
+    ok "dsh-ptc-plus 已安装（$CUR_PTC），跳过"
+  else
+    echo "   升级 dsh-ptc-plus（$CUR_PTC → >= $PTC_PLUS_MIN，描述层适配）……"
+    if ! bash scripts/dsh.sh plugin --profile wbptc add "dsh-ptc-plus@$PTC_PLUS_MIN" >/dev/null 2>&1; then
+      die "升级失败。单独重跑看报错：
+       bash scripts/dsh.sh plugin --profile wbptc add dsh-ptc-plus@$PTC_PLUS_MIN"
+    fi
+    ok "dsh-ptc-plus 已升级到 $PTC_PLUS_MIN"
+  fi
 else
   echo "   装 dsh-ptc-plus（执行内核，首次约半分钟）……"
-  if ! bash scripts/dsh.sh plugin --profile wbptc add dsh-ptc-plus >/dev/null 2>&1; then
+  if ! bash scripts/dsh.sh plugin --profile wbptc add "dsh-ptc-plus@$PTC_PLUS_MIN" >/dev/null 2>&1; then
     die "安装失败。单独重跑看报错：
-       bash scripts/dsh.sh plugin --profile wbptc add dsh-ptc-plus"
+       bash scripts/dsh.sh plugin --profile wbptc add dsh-ptc-plus@$PTC_PLUS_MIN"
   fi
-  ok "dsh-ptc-plus 已安装"
+  ok "dsh-ptc-plus 已安装（$PTC_PLUS_MIN）"
 fi
 
 # ---- 4/6 部署 + 声明 ----

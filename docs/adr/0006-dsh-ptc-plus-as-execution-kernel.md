@@ -48,6 +48,6 @@
 ## 验证方式
 
 ```sh
-bash scripts/check.sh                                              # 全绿（当日 19 项 → 现 23 项）
+bash scripts/check.sh                                              # 全绿（当日 19 项 → 现 24 项）
 bash scripts/dsh.sh --profile wbptc examples/06-program-shell.ts   # 三个 marker: true
 ```

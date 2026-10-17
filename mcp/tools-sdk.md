@@ -1,6 +1,6 @@
 ## Writing code for run_code
 
-`run_code` takes two required arguments: `code` — a PTC Plus TypeScript cell (runtime `enum` and namespaces are supported; type annotations are advisory) — and `description`, a short summary of what the program does. The declarations below are SDK bindings for this program. A declaration does not make its name a directly callable tool; only names supplied as separate tool schemas may be called directly.
+`run_code` takes two required arguments: `code`, a PTC Plus TypeScript cell (runtime `enum` and namespaces are supported; type annotations are advisory), and `description`, a short summary of what the program does. The declarations below are SDK bindings for this program. A declaration does not make its name a directly callable tool; only names supplied as separate tool schemas may be called directly.
 
 Inside the program:
 
@@ -17,7 +17,7 @@ type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string
 interface ToolArgsMap {
   /** Edit an existing UTF-8 text file by replacing literal text. */
   edit: {
-    /** Path to edit, resolved by the filesystem backend. */
+    /** Path to edit, resolved by the filesystem backend. Provide `file_path` before `old_string` and `new_string` in the arguments. */
     file_path: string;
     /** Literal text to replace. */
     old_string: string;
@@ -96,9 +96,19 @@ interface ToolArgsMap {
     /** Maximum number of lines to return. Defaults to 2000. */
     limit?: number;
   } & Record<string, JsonValue>;
+  /** Read a PNG/JPEG/WebP/GIF file and return the image itself. Large images are downscaled automatically; do not install image libraries or create thumbnails to inspect an image. */
+  read_image: {
+    /** Path to the image file, resolved by the filesystem backend. */
+    file_path: string;
+  } & Record<string, JsonValue>;
+  /** Read the current working directory, or change it with cd. Relative paths use the current directory. Existing shells and running processes keep their own directories. */
+  working_directory: {
+    /** Existing directory to enter. Omit to read the current directory. */
+    cd?: string;
+  } & Record<string, JsonValue>;
   /** Create or fully replace a UTF-8 text file. */
   write: {
-    /** Path to write, resolved by the filesystem backend. */
+    /** Path to write, resolved by the filesystem backend. Provide `file_path` before `content` in the arguments. */
     file_path: string;
     /** Full UTF-8 text content to write. */
     content: string;
@@ -107,6 +117,7 @@ interface ToolArgsMap {
 
 interface ToolOutputMap {
   edit: {
+    /** Canonical absolute path in the filesystem execution world. */
     path: string;
     before: string;
     after: string;
@@ -196,6 +207,7 @@ interface ToolOutputMap {
   } & Record<string, JsonValue>;
   pwsh: string;
   read: {
+    /** Canonical absolute path in the filesystem execution world. */
     path: string;
     offset: number;
     lines: {
@@ -204,7 +216,28 @@ interface ToolOutputMap {
     }[];
     totalLines: number;
   };
+  read_image: {
+    /** Canonical absolute path in the filesystem execution world. */
+    path: string;
+    image: {
+      attachmentId: string;
+      mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+      bytes: number;
+      width: number;
+      height: number;
+      name?: string;
+      originalDimensions?: {
+        width: number;
+        height: number;
+      };
+    };
+  };
+  working_directory: {
+    /** Current absolute working directory. */
+    cwd: string;
+  };
   write: {
+    /** Canonical absolute path in the filesystem execution world. */
     path: string;
     operation: "create" | "update";
     before: string | null;
