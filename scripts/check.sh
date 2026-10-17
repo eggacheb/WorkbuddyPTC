@@ -9,6 +9,7 @@
 # 用法：
 #   scripts/check.sh           全部检查（静态 + 需要 dsh 的部分，约 5 秒）
 #   scripts/check.sh --static  只跑静态部分（pre-commit 钩子用，毫秒级）
+#   scripts/check.sh --ci      只跑与本机环境无关的检查（GitHub Actions 用）
 #
 set -uo pipefail
 
@@ -16,6 +17,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 MODE="${1:-full}"
+# --ci：GitHub Actions 用。跳过一切依赖本机环境（dsh、.dsh-home、~/.dsh）的段落。
+IS_CI=0
+[ "$MODE" = "--ci" ] && IS_CI=1
 PASS=0
 FAIL=0
 
@@ -42,6 +46,7 @@ echo "wbptc 回归检查（模式：$MODE）"
 echo
 
 # ---------- 静态：部署副本与源一致（改了 profile/runner 忘了 deploy） ----------
+if [ "$IS_CI" -eq 0 ]; then
 echo "部署同步"
 sync_check() {
   local src="$1" dst="$2" label="$3"
@@ -59,10 +64,12 @@ sync_check profile/cordis.patch.yml .dsh-home/profiles/wbptc/cordis.patch.yml "p
 sync_check runner/index.js .dsh-home/profiles/wbptc/runner/index.js "runner/index.js"
 sync_check runner/package.json .dsh-home/profiles/wbptc/runner/package.json "runner/package.json"
 echo
+fi
 
 # ---------- 静态：插件存在（setup.sh 漏装 / 包被删） ----------
 # 两个插件都是能力所在：dsh-ops 提供 ops_* 文件工具；dsh-ptc-plus 是执行内核
 # （替换原版 ptc-runtime，解锁程序内系统命令能力，ADR-0006）。
+if [ "$IS_CI" -eq 0 ]; then
 echo "插件"
 if [ ! -d .dsh-home/profiles/wbptc ]; then
   skip "profile 还不存在（先跑 scripts/setup.sh）"
@@ -87,12 +94,13 @@ else
     fi
   fi
 fi
+fi
 echo
 
 # ---------- 静态：语法 ----------
 echo "语法"
 if command -v node >/dev/null 2>&1; then
-  for f in runner/index.js mcp/server.js scripts/lib-find-dsh.mjs scripts/install-mcp.mjs; do
+  for f in runner/index.js mcp/server.js scripts/lib-find-dsh.mjs scripts/install-mcp.mjs scripts/check-frontmatter.mjs; do
     if node --check "$f" >/dev/null 2>&1; then ok "node --check $f"; else bad "node --check $f"; fi
   done
   for f in mcp/package.json; do
@@ -117,10 +125,19 @@ if command -v python >/dev/null 2>&1; then
 else
   skip "找不到 python，跳过 py 语法检查"
 fi
+# SKILL.md 的 frontmatter：值里一个裸冒号（": "）就能让技能静默加载失败，
+# 没有任何报错，只是这个技能从此不触发。见 scripts/check-frontmatter.mjs。
+if command -v node >/dev/null 2>&1; then
+  if node scripts/check-frontmatter.mjs >/dev/null 2>&1; then
+    ok "skill/SKILL.md frontmatter 可解析"
+  else
+    bad "skill/SKILL.md frontmatter 会解析失败 —— 跑 node scripts/check-frontmatter.mjs 看详情"
+  fi
+fi
 echo
 
 # ---------- 需要 dsh 的部分 ----------
-if [ "$MODE" != "--static" ]; then
+if [ "$MODE" = "full" ]; then
   echo "dsh 组合（启动一次，约几秒）"
   if [ ! -d .dsh-home/profiles/wbptc ]; then
     skip "隔离的 profile 不存在 —— 先按 docs/running.md 建它"
@@ -162,14 +179,16 @@ fi
 # ---------- 台账：只展示，不断言 ----------
 # 这**不是**断言：你平时自己用 dsh 桌面应用时消费是正常的。
 # 唯一能断言的是「模型行被禁用」——它让消费在代码路径上不可能。
+if [ "$IS_CI" -eq 0 ]; then
 echo "台账（仅供参考，不做断言）"
-LEDGER="/c/Users/Administrator/.dsh/.dshw-usage.json"
+LEDGER="$HOME/.dsh/.dshw-usage.json"
 if [ -f "$LEDGER" ]; then
   grep -o '"debitUnits":[0-9]*\|"lastBalance":[0-9.]*' "$LEDGER" | head -2 | sed 's/^/  /'
 else
   skip "找不到台账：$LEDGER"
 fi
 echo
+fi
 
 echo "================"
 echo "通过 $PASS 项，失败 $FAIL 项"

@@ -47,7 +47,7 @@ run_program({
 
 完整的类型声明与调用规则在 `mcp/tools-sdk.md`——`run_program` 的工具描述里贴了它在本机的绝对路径，**动手写程序前先按那个路径读它**；参数类型、枚举取值都在里面。
 
-**实测可用的绑定恰好这 11 个**（2026-10-17，dsh 0.2.1 + ptc-plus 0.5.1）：
+**实测可用的绑定**（2026-10-17，dsh 0.2.1 + ptc-plus 0.5.1）：
 
 ```
 read  write  edit  glob  grep
@@ -127,7 +127,7 @@ dsh 桌面应用升级后，插件和工具声明都可能跟着变。按顺序�
 
 3. **核对描述有没有退化**。这是最隐蔽的坑：`run_code` 的描述可能回退成内核默认的 "erasable syntax only — no enum or namespaces"，而实际执行能力还在——**描述骗模型比能力缺失更常见**。看 `mcp/tools-sdk.md` 第 3 行，应该是 "PTC Plus TypeScript cell (runtime `enum` and namespaces are supported)"。
 
-4. **跑全量回归**：`bash scripts/check.sh`，24 项，含插件版本断言、模型行禁用、tools 处于 ptc 模式。
+4. **跑全量回归**：`bash scripts/check.sh`，含插件版本断言、模型行禁用、tools 处于 ptc 模式。
 
 5. **实跑能力**：`bash scripts/dsh.sh --profile wbptc examples/06-program-shell.ts`，三个 marker 全 `true`。
 

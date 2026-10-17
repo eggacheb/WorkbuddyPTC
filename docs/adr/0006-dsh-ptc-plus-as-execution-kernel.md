@@ -26,7 +26,7 @@
 
 - 进程能力解锁需要替换执行内核的**运行时机制**（env 构建、spawn 路径、kernel 生命周期），不是配置开关；重新实现等于重写数百个模块的编译/绑定/容错层
 - dsh-ptc-plus 已在用户桌面端充分运行（0.4.8，194 次提交、8 个月迭代），且为"无 agent 场景"做了代码级容错（`ctx.agents?.list?.() ?? []` 等可选链）
-- 装上即可用：六小时内从"评估"到"全绿"（当日 19/19 + 进程标记全部通过；回归项后来增至 23）
+- 装上即可用：六小时内从"评估"到"全绿"（当日 19/19 + 进程标记全部通过；回归项后来陆续增加，当前项数以 `scripts/check.sh` 输出为准）
 
 ## 代价与边界（接受）
 
@@ -48,6 +48,6 @@
 ## 验证方式
 
 ```sh
-bash scripts/check.sh                                              # 全绿（当日 19 项 → 现 24 项）
+bash scripts/check.sh                                              # 全绿（当日 19 项；现在项数以输出为准）
 bash scripts/dsh.sh --profile wbptc examples/06-program-shell.ts   # 三个 marker: true
 ```
