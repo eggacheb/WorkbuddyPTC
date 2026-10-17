@@ -1,6 +1,6 @@
 ---
 name: wbptc
-description: Run a batch of file operations as one TypeScript program in a dsh PTC runtime, through the run_program tool. Use when a task needs many tool calls — reading a dozen files, globbing then filtering then aggregating, looping or branching over results, cross-referencing several sources. Not for single reads, edits or commands.
+description: "Run a batch of file operations as one TypeScript program in a dsh PTC runtime, through the run_program tool. Use when a task needs many tool calls — reading a dozen files, globbing then filtering then aggregating, looping or branching over results, cross-referencing several sources. Also use for post-upgrade maintenance: after dsh is updated, check plugin versions, regenerate tool declarations, and re-run the regression. Not for single reads, edits or commands."
 ---
 
 # wbptc —— 把一批工具调用写成一个程序
@@ -32,6 +32,16 @@ run_program({
 - **返回值必须是严格无损 JSON**：任何 `undefined` 属性都会让整个程序失败（见"输出卫生"）
 - 只读调用可以用 `Promise.all` 并发；写入类调用按提交顺序独占执行
 - **工具调用失败会 reject**（`ToolCallError`，带 `toolName`），用 `try/catch` 接住继续跑
+
+## 依赖版本（2026-10-17 实测）
+
+| 组件 | 最低版本 | 为什么 |
+| --- | --- | --- |
+| dsh | 0.2.1 | 提供 `working_directory` 绑定；更早的版本没有它 |
+| dsh-ptc-plus | 0.5.1 | < 0.5.1 会把 `run_code` 的描述退化成"仅可擦除语法"（能力其实还在，但描述会骗模型） |
+| dsh-ops | 0.3.0 | `ops_*` 四件套 |
+
+版本不够时重跑 `bash scripts/setup.sh`，它会自动升级。
 
 ## 可用工具
 
@@ -100,3 +110,25 @@ return clean({ ... })
 - `POLICY_DENIED`：参数或路径不合规（dsh-ops 的前置检查）
 - `PTY owner`：用了 `pwsh` —— 它是需要注册终端的**工具**，本架构（零 agent）下不可用。要跑 PowerShell 就在程序里用 `child_process`（`execFile` + 绝对路径）
 - `worker-exit`：PTC 子进程异常终止，通常意味着沙箱配置被改动过——**不要**把 `profile/cordis.patch.yml` 里的沙箱模式改成 `workspace-write` 或 `read-only`，实测会让整条链路不可用（见 `docs/adr/0004-danger-full-access-on-windows.md`）
+
+## dsh 升级后的维护
+
+dsh 桌面应用升级后，插件和工具声明都可能跟着变。按顺序过一遍：
+
+1. **升级插件**。`dsh plugin --profile wbptc outdated` 空输出**不代表最新**——pnpm 对 semver 范围内的新版本不报告。直接读实际版本：
+
+   ```sh
+   node -p "require('./.dsh-home/profiles/wbptc/node_modules/dsh-ptc-plus/package.json').version"
+   ```
+
+   落后就重跑 `bash scripts/setup.sh`（会自动升级），或手动 `DSH_HOME=<仓库>/.dsh-home dsh plugin --profile wbptc add dsh-ptc-plus@<版本>`。
+
+2. **重新生成工具声明**：`bash scripts/describe-tools.sh`。它会重打 dsh-ops 的 schema 补丁、生成 `mcp/tools-sdk.md`，`ops_*` 被降级成 `unknown` 时直接失败。
+
+3. **核对描述有没有退化**。这是最隐蔽的坑：`run_code` 的描述可能回退成内核默认的 "erasable syntax only — no enum or namespaces"，而实际执行能力还在——**描述骗模型比能力缺失更常见**。看 `mcp/tools-sdk.md` 第 3 行，应该是 "PTC Plus TypeScript cell (runtime `enum` and namespaces are supported)"。
+
+4. **跑全量回归**：`bash scripts/check.sh`，24 项，含插件版本断言、模型行禁用、tools 处于 ptc 模式。
+
+5. **实跑能力**：`bash scripts/dsh.sh --profile wbptc examples/06-program-shell.ts`，三个 marker 全 `true`。
+
+**两个坑**：`setup.sh` 里读版本不能用 MSYS 绝对路径（`/d/...`），Node 的 `require` 在 Windows 上解析不了，会 fallback 成 `0.0.0`；桌面应用的 profile（`~/.dsh`）和项目的 `.dsh-home` **互不影响**，要更新桌面得单独跑 `dsh plugin --profile desktop add ...`，升级前先备份 `package.json` 和 `pnpm-lock.yaml`。
